@@ -1,0 +1,277 @@
+{
+  "metadata": {
+    "title": "SeekMoney - Insight Intelligence",
+    "description": "從社群媒體發現使用者痛點，找商機，智慧分析產品機會"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "aiProduct": "AI Product"
+  },
+  "home": {
+    "title": "開始探索",
+    "subtitle": "Define your target",
+    "emptyState": {
+      "title": "等待輸入",
+      "description": "在左側設定參數以產生使用者痛點報告"
+    },
+    "stats": {
+      "totalSignals": "Total Signals",
+      "painPoints": "Pain Points"
+    }
+  },
+  "form": {
+    "dataSource": {
+      "label": "資料源 / Source",
+      "tiktok": "TikTok API",
+      "tikhub": "抖音 API",
+      "bilibili": "Bilibili API",
+      "wechat": "微信視頻號 API",
+      "youtube": "YouTube API",
+      "xiaohongshu": "小紅書 API",
+      "twitter": "X (Twitter) API",
+      "reddit": "Reddit API"
+    },
+    "keywords": {
+      "label": "關鍵字 / Keyword",
+      "placeholder": "例如：釣魚, 露營, 裝備"
+    },
+    "deepCrawl": {
+      "title": "深度挖掘",
+      "description": "包含評論區觀點分析"
+    },
+    "analysisDepth": "分析深度",
+    "speedFast": "Speed (Fast)",
+    "accuracySlow": "Accuracy (Slow)",
+    "douyinNewConfig": {
+      "title": "抖音配置",
+      "enableComments": "擷取評論",
+      "enableCommentsDesc": "包含使用者評論資料",
+      "videoCount": "影片數量",
+      "commentsPerVideo": "每影片評論數",
+      "subComments": "二級評論",
+      "subCommentsDesc": "擷取評論的回覆"
+    },
+    "tikhubConfig": {
+      "title": "TikHub API 配置",
+      "description": "基於 TikHub API 的穩定資料擷取服務，無需登入，按需付費",
+      "statusAvailable": "API 服務可用",
+      "pricing": "按請求計費，約 $0.01/次",
+      "commentsNote": "取得評論資料可提高分析準確性",
+      "costEstimate": "預估成本",
+      "perAnalysis": "/次分析"
+    },
+    "submit": {
+      "analyzing": "正在分析...",
+      "start": "開始智慧分析"
+    },
+    "hint": {
+      "from": "將從",
+      "analyze": "分析",
+      "deepCrawl": "(深度擷取{count}個影片)",
+      "videos": "({count}個影片",
+      "comments": ", 每個{count}則評論)"
+    },
+    "units": {
+      "videos": "個",
+      "comments": "則",
+      "clips": "clips",
+      "posts": "篇"
+    }
+  },
+  "loading": {
+    "initializing": "正在初始化...",
+    "stages": {
+      "dataStream": {
+        "title": "資料採集中",
+        "badge": "擷取內容",
+        "step": "Step 1/4"
+      },
+      "fluid": {
+        "title": "語義處理中",
+        "badge": "特徵擷取",
+        "step": "Step 2/4"
+      },
+      "crystal": {
+        "title": "智慧聚類中",
+        "badge": "AI 運算",
+        "step": "Step 3/4"
+      },
+      "neural": {
+        "title": "深度分析中",
+        "badge": "LLM 推理",
+        "step": "Step 4/4"
+      }
+    },
+    "logs": {
+      "initializing": "正在準備分析環境...",
+      "validating": "正在驗證資料源連線...",
+      "crawling": "正在擷取「{keyword}」相關內容...",
+      "crawlingDefault": "正在擷取相關內容...",
+      "semanticAnalysis": "正在分析文字語義特徵...",
+      "processingVideos": "正在處理 {count} 條影片內容...",
+      "processingComments": "正在處理 {count} 則評論內容...",
+      "llmAnalysis": "AI 正在深度理解使用者痛點...",
+      "analyzingCluster": "正在分析第 {current} 個痛點聚類...",
+      "processing": "正在處理中..."
+    }
+  },
+  "results": {
+    "viewDetails": "查看詳情",
+    "signals": "signals",
+    "overallIndex": "綜合指數"
+  },
+  "detail": {
+    "tabs": {
+      "pain": "痛點分析",
+      "market": "市場格局",
+      "mvp": "MVP方案",
+      "source": "原文依據"
+    },
+    "painAnalysis": {
+      "surfacePain": "表面痛點",
+      "rootCauses": "根因分析（3個「為什麼」）",
+      "userScenarios": "使用者場景",
+      "emotionalIntensity": "情緒強度",
+      "strongIntent": "STRONG INTENT",
+      "moderate": "MODERATE",
+      "weak": "WEAK",
+      "noData": "暫無痛點深度分析資料"
+    },
+    "marketLandscape": {
+      "existingSolutions": "現有解決方案",
+      "limitation": "侷限",
+      "unmetNeeds": "未滿足的需求",
+      "marketOpportunity": "市場機會",
+      "noData": "暫無市場格局分析資料"
+    },
+    "mvpPlan": {
+      "aiProductIdea": "AI 產品構想",
+      "coreFeatures": "核心功能",
+      "validationHypotheses": "驗證假設",
+      "hypothesis": "假設",
+      "testMethod": "測試方法",
+      "firstUsers": "首批使用者",
+      "timeline": "時間預估",
+      "estimatedCost": "成本預估",
+      "noData": "暫無MVP方案資料"
+    },
+    "sourceData": {
+      "analysisRationale": "分析依據",
+      "sampleCount": "樣本數量",
+      "sourceCount": "原文數量",
+      "relevance": "相關度",
+      "representativeTexts": "代表性原文"
+    },
+    "priority": {
+      "demandIntensity": "需求強度",
+      "marketSize": "市場規模",
+      "competition": "競爭程度",
+      "overallIndex": "綜合推薦指數",
+      "blueOcean": "藍海",
+      "redOcean": "紅海",
+      "moderate": "中等"
+    },
+    "close": "關閉"
+  },
+  "dataQuality": {
+    "reliable": {
+      "title": "可靠樣本",
+      "message": "資料規模充足，分析結果具有較高可信度"
+    },
+    "preliminary": {
+      "title": "初步驗證",
+      "message": "資料規模中等，建議增加資料量以提升分析可信度"
+    },
+    "exploratory": {
+      "title": "小樣本探索",
+      "message": "資料規模較小，僅供探索性參考，強烈建議擴大樣本量"
+    },
+    "stats": {
+      "totalData": "資料總量",
+      "clusterCount": "聚類數",
+      "avgClusterSize": "平均聚類大小"
+    },
+    "suggestion": "建議",
+    "exploratoryHint": "目前資料量較少，建議使用更相關的關鍵字或增加擷取數量",
+    "preliminaryHint": "增加資料量至200+則以取得更穩定的聚類結果",
+    "dataCount": "{count} 則資料"
+  },
+  "export": {
+    "title": "Export",
+    "downloadCSV": "Download CSV",
+    "filename": "痛點分析結果",
+    "paidInterest": {
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    },
+    "headers": {
+      "clusterId": "簇ID",
+      "clusterSize": "簇大小",
+      "paidInterest": "付費意向",
+      "corePain": "核心痛點",
+      "rationale": "分析理由",
+      "productIdea": "產品構想",
+      "representativeTexts": "代表性原文"
+    }
+  },
+  "rawDataExport": {
+    "title": "Raw Data",
+    "csvFormat": "CSV Format",
+    "jsonFormat": "JSON Format",
+    "clusteringAnalysis": "Clustering Analysis",
+    "exportVideosCSV": "Export Videos CSV",
+    "exportCommentsCSV": "Export Comments CSV",
+    "exportAllJSON": "Export All Data JSON",
+    "exportClusterCSV": "Export Cluster Data CSV",
+    "clusterDataUnavailable": "聚類資料不可用",
+    "filenames": {
+      "videos": "影片資料",
+      "comments": "評論資料",
+      "clusters": "聚類資料",
+      "allData": "全部原始資料"
+    },
+    "videoHeaders": {
+      "title": "標題",
+      "author": "作者",
+      "videoUrl": "影片連結",
+      "publishTime": "發布時間",
+      "likes": "按讚數",
+      "commentCount": "評論數",
+      "description": "描述",
+      "collectedAt": "採集時間"
+    },
+    "commentHeaders": {
+      "videoTitle": "影片標題",
+      "commentText": "評論內容",
+      "username": "使用者名稱",
+      "likes": "按讚數"
+    },
+    "clusterHeaders": {
+      "clusterId": "簇ID",
+      "clusterSize": "簇大小",
+      "dataType": "資料類型",
+      "content": "內容",
+      "usernameOrAuthor": "使用者名稱/作者",
+      "likes": "按讚數",
+      "relatedVideo": "關聯影片"
+    },
+    "dataTypes": {
+      "video": "影片",
+      "comment": "評論"
+    }
+  },
+  "jobStatus": {
+    "failed": "分析失敗",
+    "completed": "分析完成",
+    "checkResults": "請查看右側結果"
+  },
+  "errors": {
+    "jobIdRequired": "任務ID是必需的",
+    "jobNotFound": "任務不存在",
+    "serverError": "伺服器內部錯誤",
+    "keywordsRequired": "關鍵字是必需的",
+    "noValidJobId": "未收到有效的任務ID",
+    "networkError": "網路錯誤，請重試"
+  }
+}

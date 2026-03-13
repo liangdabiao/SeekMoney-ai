@@ -7,11 +7,11 @@ English | [中文](./README.md)
 A web application that helps indie developers automatically discover user pain points from social media, with intelligent clustering analysis and AI-powered product solution generation.
 
 **Core Features:**
-- Multi-platform data collection (Douyin, Xiaohongshu, TikTok, Bilibili, WeChat Channels, YouTube)
+- Multi-platform data collection (Douyin, Xiaohongshu, TikTok, Bilibili, WeChat Channels, YouTube, X (Twitter), Reddit)
 - Semantic clustering based on GLM embedding-3 + DBSCAN algorithm
 - Deep analysis using GLM-4.6 thinking model
 - Intelligent priority scoring system (demand intensity + market size + competition)
-- Full bilingual support (Chinese/English)
+- Full trilingual support (Simplified Chinese / Traditional Chinese / English)
 
 ## Features
 
@@ -21,8 +21,10 @@ A web application that helps indie developers automatically discover user pain p
   - TikTok (International)
   - Bilibili
   - WeChat Channels
-  - YouTube
+  - YouTube (V3 API with Shorts support)
   - Xiaohongshu (Little Red Book)
+  - X (Twitter)
+  - Reddit
 - **Intelligent Semantic Clustering**
   - Videos and comments clustered separately to avoid semantic confusion
   - Vector representation based on GLM embedding-3
@@ -54,9 +56,9 @@ A web application that helps indie developers automatically discover user pain p
 - Evaluates implementation difficulty and market potential
 
 ### Multi-language Support
-- Chinese/English interface switching
+- Simplified Chinese / Traditional Chinese / English interface switching
 - AI analysis results automatically output in the current language
-- Internationalized URL routing (`/zh/`, `/en/`)
+- Internationalized URL routing (`/zh/`, `/zh-TW/`, `/en/`)
 - Auto-detect browser language preference
 
 ## Data Sources
@@ -69,13 +71,15 @@ All data sources are powered by TikHub API, providing unified and stable data co
 | TikTok | TikTok | International version, global users |
 | Bilibili | Bilibili | Leading video sharing platform in China |
 | WeChat Channels | WeChat | Short video feature within WeChat |
-| YouTube | YouTube | World's largest video platform |
+| YouTube | YouTube | World's largest video platform (V3 API with Shorts search) |
 | Xiaohongshu | Xiaohongshu | Lifestyle sharing community |
+| X (Twitter) | Twitter | Global mainstream social media platform |
+| Reddit | Reddit | World's largest forum community platform |
 
 ### TikHub API Advantages
-- **Multi-Platform**: One API for 6 major platforms
+- **Multi-Platform**: One API for 8 major platforms
 - **Stable & Reliable**: No crawler maintenance, avoids anti-crawling restrictions
-- **Pay Per Use**: ~¥0.01/request, 24-hour cache reduces costs
+- **Pay Per Use**: ~$0.01/request, 24-hour cache reduces costs
 - **Developer Friendly**: RESTful API with comprehensive documentation and SDKs
 - **Compliance**: Official API interface, avoids legal risks
 
@@ -143,7 +147,7 @@ EMBEDDING_PROVIDER=zhipuai
 #### Configuration Notes
 
 **Required:**
-1. **TIKHUB_API_TOKEN**: Data collection API, supports 6 platforms
+1. **TIKHUB_API_TOKEN**: Data collection API, supports 8 platforms
 2. **GLM_API_KEY**: Zhipu AI API, for pain point deep analysis
 
 **Optional:**
@@ -171,13 +175,13 @@ Visit http://localhost:3000
 
 ### Pain Point Analysis (Home Page)
 
-1. Select data source (Douyin, TikTok, Bilibili, WeChat Channels, YouTube, Xiaohongshu)
+1. Select data source (Douyin, TikTok, Bilibili, WeChat Channels, YouTube, Xiaohongshu, X (Twitter), Reddit)
 2. Enter keywords, separated by commas, e.g., `camping, beginner, gear`
 3. Optionally enable video comment fetching (slower but richer data)
 4. Click Start Analysis and wait for results
 5. Click any row to view detailed source content, or export CSV
 
-> **TikHub API Note**: Based on TikHub API data acquisition service, no login required, pay per use. Each analysis costs approximately ¥0.01-0.5, depending on data volume.
+> **TikHub API Note**: Based on TikHub API data acquisition service, no login required, pay per use. Each analysis costs approximately $0.01-0.5, depending on data volume.
 
 ### AI Product Suggestions (/ai-product)
 
@@ -187,10 +191,10 @@ Visit http://localhost:3000
 
 ### Language Switching
 
-- Click the language switcher in the top right corner to switch between Chinese/English
+- Click the language switcher in the top right corner to switch between Simplified Chinese / Traditional Chinese / English
 - First visit will auto-detect browser language preference
 - AI analysis results will automatically output in the current language
-- You can also access directly via URL: `/zh/` or `/en/`
+- You can also access directly via URL: `/zh/`, `/zh-TW/`, or `/en/`
 
 ## Project Structure
 
@@ -226,7 +230,8 @@ SeekMoney-ai/
 │   │   ├── navigation.ts         # i18n navigation utilities
 │   │   └── request.ts            # Translation message loading
 │   ├── messages/                 # Translation files
-│   │   ├── zh.json               # Chinese translations
+│   │   ├── zh.json               # Simplified Chinese translations
+│   │   ├── zh-TW.json            # Traditional Chinese translations
 │   │   └── en.json               # English translations
 │   ├── middleware.ts             # i18n routing middleware
 │   └── lib/
@@ -239,8 +244,10 @@ SeekMoney-ai/
 │   │   ├── tiktok-service.ts     # TikTok data source service
 │   │   ├── bilibili-service.ts   # Bilibili data source service
 │   │   ├── wechat-service.ts     # WeChat data source service
-│   │   ├── youtube-service.ts    # YouTube data source service
+│   │   ├── youtube-service.ts    # YouTube data source service (V3 API)
 │   │   ├── xhs-service.ts        # Xiaohongshu data source service
+│   │   ├── twitter-service.ts    # X (Twitter) data source service
+│   │   ├── reddit-service.ts     # Reddit data source service
 │   │   ├── glm-service.ts        # GLM LLM service
 │   │   ├── clustering-service.ts # Clustering service (Python integration)
 │   │   ├── priority-scoring.ts   # Priority scoring system
@@ -319,9 +326,9 @@ Sorted Results → Frontend Display
 **Sign Up**: https://api.tikhub.io/
 
 **Features**:
-- Multi-platform support: Douyin, Xiaohongshu, TikTok, Bilibili, WeChat Channels, YouTube
+- Multi-platform support: Douyin, Xiaohongshu, TikTok, Bilibili, WeChat Channels, YouTube, X (Twitter), Reddit
 - Stable & reliable: API interface, no anti-crawling risks
-- Pay per use: ~¥0.01/request
+- Pay per use: ~$0.01/request
 - 24-hour cache: Free repeat requests
 - Usage monitoring: Supports `getUsageStats()` method
 
@@ -383,14 +390,14 @@ OPENAI_BASE_URL=https://api.openai.com/v1     # Optional, supports proxy
 ## FAQ
 
 ### Q: How much does TikHub API cost?
-A: TikHub API charges per request, approximately ¥0.01/request. A typical analysis (3 keywords, 20 videos, 30 comments per video) costs about ¥0.5. Supports 24-hour caching, repeat access is free.
+A: TikHub API charges per request, approximately $0.01/request. A typical analysis (3 keywords, 20 videos, 30 comments per video) costs about $0.5. Supports 24-hour caching, repeat access is free.
 
 ### Q: Why is TikHub API recommended?
 A:
 - **Stability**: API interface, no anti-crawling risks
 - **Multi-platform**: One API for 6 major platforms
 - **Speed**: Fast response, no page loading wait
-- **Cost**: Pay per use, ~¥0.01/request
+- **Cost**: Pay per use, ~$0.01/request
 - **Compliance**: Official API interface, avoids legal risks
 - **Cache**: 24-hour cache, free repeat requests
 
@@ -406,7 +413,7 @@ A:
 - **Too many**: Increase keyword specificity, or raise the `eps` parameter (clustering distance threshold)
 
 ### Q: Which platforms are supported?
-A: Currently supports 6 platforms: Douyin, TikTok, Bilibili, WeChat Channels, YouTube, Xiaohongshu. All data sources are powered by TikHub API.
+A: Currently supports 8 platforms: Douyin, TikTok, Bilibili, WeChat Channels, YouTube, Xiaohongshu, X (Twitter), Reddit. All data sources are powered by TikHub API.
 
 ### Q: Can I use OpenAI instead of Zhipu GLM?
 A: Partially. Current version:
@@ -432,14 +439,18 @@ A:
 ## Roadmap
 
 ### Completed
-- [x] TikHub API data source support (6 platforms)
+- [x] TikHub API data source support (8 platforms)
 - [x] Pain point clustering analysis
 - [x] AI product solution generation
 - [x] Deep crawling (with comments)
-- [x] Multi-language support (Chinese/English)
+- [x] Multi-language support (Simplified Chinese / Traditional Chinese / English)
 - [x] Data quality grading
 - [x] Priority scoring system
 - [x] Raw data export
+- [x] X (Twitter) platform support
+- [x] Reddit platform support
+- [x] YouTube V3 API upgrade (Shorts search, formatted data)
+- [x] Traditional Chinese (zh-TW) locale support
 
 ### Planned
 - [ ] User history record saving

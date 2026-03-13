@@ -27,7 +27,9 @@
       "bilibili": "Bilibili API",
       "wechat": "WeChat Channels API",
       "youtube": "YouTube API",
-      "xiaohongshu": "Xiaohongshu (Little Red Book) API"
+      "xiaohongshu": "Xiaohongshu (Little Red Book) API",
+      "twitter": "X (Twitter) API",
+      "reddit": "Reddit API"
     },
     "keywords": {
       "label": "Keywords",
@@ -53,7 +55,7 @@
       "title": "TikHub API Config",
       "description": "Stable data acquisition service based on TikHub API, no login required, pay per use",
       "statusAvailable": "API Service Available",
-      "pricing": "Pay per request, ~¥0.01/request",
+      "pricing": "Pay per request, ~$0.01/request",
       "commentsNote": "Including comment data improves analysis accuracy",
       "costEstimate": "Est. Cost",
       "perAnalysis": "/analysis"
@@ -72,7 +74,8 @@
     "units": {
       "videos": "",
       "comments": "",
-      "clips": "clips"
+      "clips": "clips",
+      "posts": "posts"
     }
   },
   "loading": {

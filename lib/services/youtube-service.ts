@@ -1,5 +1,7 @@
-// YouTube 数据源服务
-// 实现 IDataSourceService 接口，将 YouTube API 数据转换为系统通用格式
+// YouTube 数据源服务 (V3)
+// 实现 IDataSourceService 接口，使用 TikHub YouTube V3 API
+// 支持 get_general_search、get_shorts_search、get_video_comments (V3)
+// 支持 need_format=true 返回清洗后的结构化数据
 
 import {
   TikHubAPIClient,
@@ -19,13 +21,18 @@ export interface YouTubeServiceOptions {
   maxVideos?: number;
   maxCommentsPerVideo?: number;
   enableCache?: boolean;
-  requestDelay?: number; // 请求间隔（毫秒）
-  languageCode?: string; // 语言代码
-  countryCode?: string; // 国家代码
+  requestDelay?: number;
+  languageCode?: string;
+  countryCode?: string;
+  // V3 新增选项
+  uploadDate?: 'last_hour' | 'today' | 'this_week' | 'this_month' | 'this_year';
+  duration?: 'under_4_minutes' | '4_20_minutes' | 'over_20_minutes';
+  sortBy?: 'relevance' | 'upload_date' | 'view_count' | 'rating';
+  includeShorts?: boolean;
 }
 
 /**
- * YouTube 数据源服务
+ * YouTube 数据源服务 (V3)
  */
 export class YouTubeService implements IDataSourceService {
   private client: TikHubAPIClient;
@@ -39,7 +46,9 @@ export class YouTubeService implements IDataSourceService {
       enableCache: true,
       requestDelay: 500,
       languageCode: 'en',
-      countryCode: 'us'
+      countryCode: 'us',
+      sortBy: 'relevance',
+      includeShorts: false
     };
 
     if (options) {
@@ -48,48 +57,52 @@ export class YouTubeService implements IDataSourceService {
   }
 
   /**
-   * 基础搜索（不含评论）
+   * 基础搜索（不含评论）- 使用 V3 get_general_search
    */
   async searchAndFetch(keyword: string, limit: number): Promise<DataSourceResult> {
-    console.log(`[YouTube Service] 开始搜索关键词: ${keyword}, 限制: ${limit}`);
+    console.log(`[YouTube Service V3] 开始搜索关键词: ${keyword}, 限制: ${limit}`);
 
     const rawTexts: string[] = [];
     const videos: any[] = [];
     let totalFetched = 0;
+    let continuationToken = '';
 
     try {
-      // 分页搜索，直到获取足够的数据或没有更多结果
       while (totalFetched < limit) {
-        console.log(`[YouTube Service] 搜索第 ${Math.floor(totalFetched / 20) + 1} 页`);
+        console.log(`[YouTube Service V3] 搜索第 ${Math.floor(totalFetched / 20) + 1} 页`);
 
-        const searchResult = await this.client['searchYouTubeVideos']({
+        const searchResult = await this.client.searchYouTubeVideos({
           search_query: keyword,
           language_code: this.defaultOptions.languageCode,
-          country_code: this.defaultOptions.countryCode
+          country_code: this.defaultOptions.countryCode,
+          upload_date: this.defaultOptions.uploadDate,
+          duration: this.defaultOptions.duration,
+          sort_by: this.defaultOptions.sortBy,
+          type: 'video',
+          need_format: true,
+          continuation_token: continuationToken || undefined
         });
 
-        console.log('[YouTube Service] API 响应 code:', searchResult.code);
+        console.log('[YouTube Service V3] API 响应 code:', searchResult.code);
 
         if (searchResult.code !== 200) {
           throw new Error(`YouTube API 搜索失败: ${searchResult.message}`);
         }
 
-        // YouTube API 响应格式: { code, data: { videos: [...], continuation_token: ... } }
-        const videoList = searchResult.data?.videos;
+        // V3 格式化数据优先从 formatted_data 中取，兼容旧格式
+        const formattedData = searchResult.data?.formatted_data;
+        const videoList = formattedData?.videos
+          || searchResult.data?.videos
+          || searchResult.data?.data
+          || [];
 
-        if (!videoList || !Array.isArray(videoList)) {
-          console.warn('[YouTube Service] 未找到有效的数据数组');
+        if (!Array.isArray(videoList) || videoList.length === 0) {
+          console.warn('[YouTube Service V3] 没有更多结果，停止分页');
           break;
         }
 
-        console.log(`[YouTube Service] 第 ${Math.floor(totalFetched / 20) + 1} 页获取到 ${videoList.length} 个结果`);
+        console.log(`[YouTube Service V3] 当前页获取到 ${videoList.length} 个结果`);
 
-        if (videoList.length === 0) {
-          console.warn('[YouTube Service] 没有更多结果，停止分页');
-          break;
-        }
-
-        // 处理当前页的结果
         const remainingLimit = limit - totalFetched;
         const pageItems = videoList.slice(0, remainingLimit);
 
@@ -98,7 +111,6 @@ export class YouTubeService implements IDataSourceService {
           if (video) {
             videos.push(video);
 
-            // 提取文本内容
             if (video.title && video.title.length > 5) {
               rawTexts.push(video.title);
             }
@@ -109,21 +121,55 @@ export class YouTubeService implements IDataSourceService {
           }
         }
 
-        console.log(`[YouTube Service] 当前页处理结果: 累计视频 ${videos.length}, 累计文本 ${rawTexts.length}`);
+        console.log(`[YouTube Service V3] 当前页处理结果: 累计视频 ${videos.length}, 累计文本 ${rawTexts.length}`);
 
-        // 如果当前页的结果少于请求数量，说明没有更多结果了
-        if (videoList.length < 20) {
+        // 更新分页 token
+        continuationToken = formattedData?.continuation_token
+          || searchResult.data?.continuation_token || '';
+
+        if (!continuationToken || videoList.length < 20) {
           break;
         }
 
-        // 避免请求过快
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      // 去重
+      // 如果启用了 Shorts 搜索，额外搜索 Shorts
+      if (this.defaultOptions.includeShorts && videos.length < limit) {
+        try {
+          const shortsResult = await this.client.searchYouTubeShorts({
+            search_query: keyword,
+            language_code: this.defaultOptions.languageCode,
+            country_code: this.defaultOptions.countryCode,
+            need_format: true
+          });
+
+          if (shortsResult.code === 200) {
+            const shortsList = shortsResult.data?.formatted_data?.shorts
+              || shortsResult.data?.shorts || [];
+            const remainingLimit = limit - totalFetched;
+
+            for (const item of shortsList.slice(0, remainingLimit)) {
+              const video = this.convertShortsResultToVideo(item, keyword);
+              if (video) {
+                videos.push(video);
+                if (video.title && video.title.length > 5) {
+                  rawTexts.push(video.title);
+                }
+                totalFetched++;
+              }
+            }
+
+            console.log(`[YouTube Service V3] Shorts 搜索补充了 ${shortsList.length} 个结果`);
+          }
+        } catch (error) {
+          console.warn('[YouTube Service V3] Shorts 搜索失败，跳过:', error);
+        }
+      }
+
       const uniqueTexts = [...new Set(rawTexts)].filter(t => t.trim().length > 5);
 
-      console.log(`[YouTube Service] 搜索完成: 获取 ${videos.length} 个视频, ${uniqueTexts.length} 条文本`);
+      console.log(`[YouTube Service V3] 搜索完成: 获取 ${videos.length} 个视频, ${uniqueTexts.length} 条文本`);
 
       return {
         rawTexts: uniqueTexts,
@@ -133,27 +179,27 @@ export class YouTubeService implements IDataSourceService {
           keyword,
           totalResults: videos.length,
           returnedResults: videos.length,
-          usage: this.client['getUsageStats']()
+          apiVersion: 'v3',
+          usage: this.client.getUsageStats()
         }
       };
     } catch (error) {
-      console.error('[YouTube Service] 搜索失败:', error);
+      console.error('[YouTube Service V3] 搜索失败:', error);
       throw error;
     }
   }
 
   /**
-   * 深度搜索（含评论）
+   * 深度搜索（含评论）- 评论使用 V3 get_video_comments
    */
   async searchWithComments(keyword: string, options: DeepCrawlOptions): Promise<DeepCrawlResult> {
-    console.log(`[YouTube Service] 开始深度搜索: ${keyword}`);
+    console.log(`[YouTube Service V3] 开始深度搜索: ${keyword}`);
 
-    // 合并选项
     const maxVideos = options.maxVideos || this.defaultOptions.maxVideos!;
     const maxCommentsPerVideo = options.maxCommentsPerVideo || this.defaultOptions.maxCommentsPerVideo!;
 
-    // 先搜索视频
-    const { videos: videoList } = await this.searchAndFetch(keyword, maxVideos);
+    const searchResult = await this.searchAndFetch(keyword, maxVideos);
+    const videoList = searchResult.videos || [];
 
     if (videoList.length === 0) {
       return {
@@ -165,14 +211,12 @@ export class YouTubeService implements IDataSourceService {
       };
     }
 
-    console.log(`[YouTube Service] 开始获取 ${videoList.length} 个视频的评论`);
+    console.log(`[YouTube Service V3] 开始获取 ${videoList.length} 个视频的评论`);
 
-    // 获取评论
     const allComments: any[] = [];
     const rawTexts: string[] = [];
     const commentTexts: string[] = [];
 
-    // 从视频结果中提取文本
     for (const video of videoList) {
       if (video.title && video.title.length > 5) {
         rawTexts.push(video.title);
@@ -182,37 +226,37 @@ export class YouTubeService implements IDataSourceService {
       }
     }
 
-    // 批量获取评论
+    // 批量获取评论 (V3)
     const videoIds = videoList
-      .map(v => v.id)
-      .filter((id): id is string => !!id);
+      .map((v: any) => v.id || v.video_id)
+      .filter((id: string | undefined): id is string => !!id);
 
-    const commentsMap = await this.client['getYouTubeVideoCommentsBatch'](videoIds, maxCommentsPerVideo);
+    const commentsMap = await this.client.getYouTubeVideoCommentsBatch(videoIds, maxCommentsPerVideo);
 
-    // 处理评论数据
     for (const video of videoList) {
-      if (!video.id) continue;
+      const videoId = video.id || video.video_id;
+      if (!videoId) continue;
 
-      const comments = commentsMap.get(video.id) || [];
+      const comments = commentsMap.get(videoId) || [];
       const limitedComments = comments.slice(0, maxCommentsPerVideo);
 
       for (const comment of limitedComments) {
         const mappedComment = this.convertCommentToData(comment, video.title);
         allComments.push(mappedComment);
 
-        if (comment.content && comment.content.length > 5) {
-          commentTexts.push(comment.content);
+        // V3 格式化评论: content 字段
+        const text = comment.content || comment.text || '';
+        if (text.length > 5) {
+          commentTexts.push(text);
         }
       }
 
-      // 添加请求延迟
       await new Promise(resolve => setTimeout(resolve, this.defaultOptions.requestDelay!));
     }
 
-    // 合并所有文本并去重
     const allTexts = [...new Set([...rawTexts, ...commentTexts])];
 
-    console.log(`[YouTube Service] 深度搜索完成: ${videoList.length} 个视频, ${allComments.length} 条评论, ${allTexts.length} 条文本`);
+    console.log(`[YouTube Service V3] 深度搜索完成: ${videoList.length} 个视频, ${allComments.length} 条评论, ${allTexts.length} 条文本`);
 
     return {
       rawTexts: allTexts,
@@ -223,102 +267,122 @@ export class YouTubeService implements IDataSourceService {
     };
   }
 
-  /**
-   * 检查服务可用性
-   */
   async checkAvailability(): Promise<boolean> {
-    // 对于 YouTube，我们总是返回 true，让实际请求时再处理错误
     return true;
   }
 
-  /**
-   * 获取使用统计
-   */
   getUsageStats() {
-    return this.client['getUsageStats']();
+    return this.client.getUsageStats();
   }
 
-  /**
-   * 清除缓存
-   */
   clearCache(): void {
-    this.client['clearCache']();
+    this.client.clearCache();
   }
 
-  /**
-   * 获取缓存统计
-   */
   getCacheStats() {
-    return this.client['getCacheStats']();
+    return this.client.getCacheStats();
   }
 
   /**
-   * 将 YouTube 搜索结果转换为视频数据格式
+   * 将 YouTube V3 搜索结果转换为视频数据格式
+   * 兼容 need_format=true 的清洗数据和原始数据
    */
   private convertSearchResultToVideo(item: any, sourceKeyword: string): any {
-    if (!item.video_id) {
-      console.warn('[YouTube Service] convertSearchResultToVideo: item 缺少 video_id 字段');
+    // V3 formatted_data 中的视频 ID 字段可能是 video_id 或 id
+    const videoId = item.video_id || item.id || '';
+
+    if (!videoId) {
+      console.warn('[YouTube Service V3] convertSearchResultToVideo: 缺少 video_id 字段');
       return null;
     }
 
-    // 提取缩略图
-    const thumbnails = item.thumbnails || [];
-    const highQualityThumb = thumbnails.find((t: any) => t.width >= 720) || thumbnails[0];
-    const thumbUrl = highQualityThumb?.url || '';
+    const thumbnails = item.thumbnails || item.thumbnail || [];
+    const thumbUrl = Array.isArray(thumbnails)
+      ? (thumbnails.find((t: any) => t.width >= 720) || thumbnails[0])?.url || ''
+      : (typeof thumbnails === 'string' ? thumbnails : '');
 
-    // 构建 YouTube 视频链接
-    const videoUrl = `https://www.youtube.com/watch?v=${item.video_id}`;
-
-    // 提取描述（截取前500字符）
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const description = item.description ? item.description.substring(0, 500) : '';
 
     return {
       title: item.title || '',
       description: description,
-      author: item.author || '',
+      author: item.author || item.channel_name || item.channel_title || '',
       video_url: videoUrl,
-      publish_time: item.published_time || new Date().toISOString(),
-      likes: item.number_of_views?.toString() || '0',
+      publish_time: item.published_time || item.publish_date || new Date().toISOString(),
+      likes: (item.view_count || item.number_of_views || 0).toString(),
       collected_at: new Date().toISOString(),
-      comment_count: 0,
+      comment_count: item.comment_count || 0,
       // 扩展字段
-      id: item.video_id,
-      video_id: item.video_id,
-      video_length: item.video_length || '',
-      number_of_views: item.number_of_views || 0,
+      id: videoId,
+      video_id: videoId,
+      video_length: item.video_length || item.duration || '',
+      number_of_views: item.view_count || item.number_of_views || 0,
       channel_id: item.channel_id || '',
-      thumbnails: thumbnails,
+      thumbnails: Array.isArray(thumbnails) ? thumbnails : [],
       thumb_url: thumbUrl,
-      is_live: item.is_live_content || false,
+      is_live: item.is_live_content || item.is_live || false,
       category: item.category || '',
       type: item.type || 'NORMAL',
       keywords: item.keywords || [],
-      // 来源
       source_keyword: sourceKeyword
     };
   }
 
   /**
-   * 将 YouTube 评论转换为数据格式
+   * 将 YouTube Shorts 搜索结果转换为视频数据格式
+   */
+  private convertShortsResultToVideo(item: any, sourceKeyword: string): any {
+    const videoId = item.video_id || item.id || '';
+
+    if (!videoId) {
+      return null;
+    }
+
+    const videoUrl = `https://www.youtube.com/shorts/${videoId}`;
+
+    return {
+      title: item.title || '',
+      description: '',
+      author: item.author || item.channel_name || '',
+      video_url: videoUrl,
+      publish_time: item.published_time || new Date().toISOString(),
+      likes: (item.view_count || 0).toString(),
+      collected_at: new Date().toISOString(),
+      comment_count: 0,
+      id: videoId,
+      video_id: videoId,
+      type: 'SHORTS',
+      source_keyword: sourceKeyword
+    };
+  }
+
+  /**
+   * 将 YouTube V3 评论转换为数据格式
+   * 兼容 need_format=true 的清洗评论数据
    */
   private convertCommentToData(comment: any, videoTitle: string): any {
+    // V3 格式化数据中 author 可能是对象或直接是字段
     const author = comment.author || {};
+    const authorName = typeof author === 'string'
+      ? author
+      : (author.display_name || author.name || comment.author_name || '');
 
     return {
       video_title: videoTitle,
-      comment_text: comment.content || '',
-      username: author.display_name || '',
-      likes: comment.like_count?.toString() || '0',
+      comment_text: comment.content || comment.text || '',
+      username: authorName,
+      likes: (comment.like_count || comment.likes || 0).toString(),
       // 扩展字段
-      comment_id: comment.comment_id,
+      comment_id: comment.comment_id || comment.id || '',
       channel_id: author.channel_id || '',
       channel_url: author.channel_url || '',
-      avatar_url: author.avatar_url || '',
+      avatar_url: author.avatar_url || author.thumbnail || '',
       is_verified: author.is_verified || false,
       is_creator: author.is_creator || false,
-      published_time: comment.published_time || '',
+      published_time: comment.published_time || comment.time || '',
       reply_count: comment.reply_count || 0,
-      like_count: comment.like_count || 0,
+      like_count: comment.like_count || comment.likes || 0,
       reply_level: comment.reply_level || 0
     };
   }
@@ -346,23 +410,14 @@ export class YouTubeServiceAdapter implements IDataSourceService {
     return await this.service.checkAvailability();
   }
 
-  /**
-   * 获取使用统计（YouTube 特有方法）
-   */
   getUsageStats() {
     return this.service.getUsageStats();
   }
 
-  /**
-   * 清除缓存（YouTube 特有方法）
-   */
   clearCache(): void {
     this.service.clearCache();
   }
 
-  /**
-   * 获取缓存统计（YouTube 特有方法）
-   */
   getCacheStats() {
     return this.service.getCacheStats();
   }

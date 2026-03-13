@@ -5,7 +5,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useState } from 'react';
 
 const languages = [
-  { code: 'zh', label: '中文', flag: '🇨🇳' },
+  { code: 'zh', label: '简体中文', flag: '🇨🇳' },
+  { code: 'zh-TW', label: '繁體中文', flag: '🇹🇼' },
   { code: 'en', label: 'English', flag: '🇺🇸' },
 ];
 

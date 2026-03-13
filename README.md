@@ -6,11 +6,11 @@
 一个帮助创业者从社交媒体找商机，自动发现用户核心痛点的 Web 应用，支持智能聚类分析和产品方案生成。
 
 **核心功能：**
-- 多平台数据采集（抖音、小红书、TikTok、Bilibili、微信视频号、YouTube）
+- 多平台数据采集（抖音、小红书、TikTok、Bilibili、微信视频号、YouTube、X (Twitter)、Reddit）
 - 基于 openai兼容/GLM + embedding + DBSCAN 的语义聚类算法
 - 调用  openai兼容/GLM-4.7 思考模型深度分析用户痛点
 - 智能优先级评分系统（需求强度 + 市场规模 + 竞争度）
-- 完整的中英文双语支持
+- 完整的中文简体/繁体/英文三语支持
 
 ## 功能特性
 
@@ -20,8 +20,10 @@
   - TikTok（国际版）
   - Bilibili（B站）
   - 微信视频号
-  - YouTube
+  - YouTube（V3 API）
   - 小红书
+  - X (Twitter)
+  - Reddit
 - **智能语义聚类**
   - 视频/评论分别聚类，避免语义层次混淆
   - 基于  openai兼容/GLM embedding  的向量表示
@@ -53,9 +55,9 @@
 - 评估实现难度和市场潜力
 
 ### 多语言支持
-- 支持中文/英文界面切换
+- 支持简体中文/繁體中文/英文界面切换
 - AI 分析结果根据当前语言自动输出对应语言
-- URL 路由国际化（`/zh/`、`/en/`）
+- URL 路由国际化（`/zh/`、`/zh-TW/`、`/en/`）
 - 自动检测浏览器语言偏好
 
 ## 数据源说明
@@ -68,13 +70,15 @@
 | TikTok | TikTok | 国际版抖音，全球用户 |
 | Bilibili | Bilibili | 中国领先的视频分享平台 |
 | 微信视频号 | WeChat | 微信内置短视频功能 |
-| YouTube | YouTube | 全球最大视频平台 |
+| YouTube | YouTube | 全球最大视频平台（V3 API，支持 Shorts 搜索） |
 | 小红书 | Xiaohongshu | 生活方式分享社区 |
+| X (Twitter) | Twitter | 全球主流社交媒体平台 |
+| Reddit | Reddit | 全球最大论坛社区平台 |
 
 ### TikHub API 优势
-- **多平台统一**：一个 API 接入 6 个主流平台
+- **多平台统一**：一个 API 接入 8 个主流平台
 - **稳定可靠**：无需维护爬虫，避免反爬限制
-- **按需付费**：约 ¥0.01/次请求，24 小时缓存降低成本
+- **按需付费**：约 $0.01/次请求，24 小时缓存降低成本
 - **开发友好**：RESTful API，完善的文档和 SDK
 - **合规安全**：官方 API 接口，避免法律风险
 
@@ -141,7 +145,7 @@ GLM_EMBEDDING_MODEL=embedding-3
 #### 配置说明
 
 **必需配置：**
-1. **TIKHUB_API_TOKEN**：数据采集 API，支持 6 个平台
+1. **TIKHUB_API_TOKEN**：数据采集 API，支持 8 个平台
 2. **GLM_API_KEY**：智谱 AI API，用于痛点深度分析
  
  
@@ -163,21 +167,21 @@ npm run start
 
 ### 痛点分析（主页）
 
-1. 选择数据源（抖音、TikTok、Bilibili、微信视频号、YouTube、小红书）
+1. 选择数据源（抖音、TikTok、Bilibili、微信视频号、YouTube、小红书、X (Twitter)、Reddit）
 2. 输入关键词，多个用逗号分隔，如：`露营, 新手, 装备`
 3. 可选开启获取视频评论（更耗时但数据更丰富）
 4. 点击开始分析，等待结果
 5. 点击任意行查看详细原文，或导出 CSV
 
-> **TikHub API 说明**：基于 TikHub API 的数据获取服务，无需登录，按需付费。每次分析约 ¥0.01-0.5，具体取决于数据量。
+> **TikHub API 说明**：基于 TikHub API 的数据获取服务，无需登录，按需付费。每次分析约 $0.01-0.5，具体取决于数据量。
  
 
 ### 语言切换
 
-- 页面右上角点击语言切换器可切换中文/英文
+- 页面右上角点击语言切换器可切换简体中文/繁體中文/英文
 - 首次访问会自动检测浏览器语言偏好
 - AI 分析结果会根据当前语言自动输出对应语言
-- 也可通过 URL 直接访问：`/zh/` 或 `/en/`
+- 也可通过 URL 直接访问：`/zh/`、`/zh-TW/` 或 `/en/`
 
 ## 项目结构
 
@@ -213,7 +217,8 @@ SeekMoney-ai/
 │   │   ├── navigation.ts         # 国际化导航工具
 │   │   └── request.ts            # 翻译消息加载
 │   ├── messages/                 # 翻译文件
-│   │   ├── zh.json               # 中文翻译
+│   │   ├── zh.json               # 简体中文翻译
+│   │   ├── zh-TW.json            # 繁體中文翻译
 │   │   └── en.json               # 英文翻译
 │   ├── middleware.ts             # 国际化路由中间件
 │   └── lib/
@@ -226,8 +231,10 @@ SeekMoney-ai/
 │   │   ├── tiktok-service.ts     # TikTok 数据源服务
 │   │   ├── bilibili-service.ts   # Bilibili 数据源服务
 │   │   ├── wechat-service.ts     # 微信数据源服务
-│   │   ├── youtube-service.ts    # YouTube 数据源服务
+│   │   ├── youtube-service.ts    # YouTube 数据源服务 (V3 API)
 │   │   ├── xhs-service.ts        # 小红书数据源服务
+│   │   ├── twitter-service.ts    # X (Twitter) 数据源服务
+│   │   ├── reddit-service.ts     # Reddit 数据源服务
 │   │   ├── glm-service.ts        # GLM 大模型服务
 │   │   ├── clustering-service.ts # 聚类服务(Python集成)
 │   │   ├── priority-scoring.ts   # 优先级评分系统
@@ -306,9 +313,9 @@ GLM-4.7 深度分析（每类）
 **注册地址**：https://api.tikhub.io/
 
 **特点**：
-- 支持多平台：抖音、小红书、TikTok、Bilibili、微信视频号、YouTube
+- 支持多平台：抖音、小红书、TikTok、Bilibili、微信视频号、YouTube、X (Twitter)、Reddit
 - 稳定可靠：API 接口，无反爬风险
-- 按需付费：约 ¥0.01/次请求
+- 按需付费：约 $0.01/次请求
 - 24 小时缓存：重复请求免费
 - 用量监控：支持 `getUsageStats()` 方法查询
 
@@ -322,14 +329,14 @@ TIKHUB_ENABLE_CACHE=true       # 启用 24 小时缓存
 ## 常见问题
 
 ### Q: TikHub API 如何收费？
-A: TikHub API 按请求计费，约 ¥0.01/次。一次典型分析（3 个关键词，20 个视频，每个视频 30 条评论）大约花费 ¥0.5。支持 24 小时缓存，重复访问不收费。
+A: TikHub API 按请求计费，约 $0.01/次。一次典型分析（3 个关键词，20 个视频，每个视频 30 条评论）大约花费 $0.5。支持 24 小时缓存，重复访问不收费。
 
 ### Q: 为什么推荐使用 TikHub API？
 A:
 - **稳定性**：API 接口，无反爬风险
-- **多平台**：一个 API 支持 6 个主流平台
+- **多平台**：一个 API 支持 8 个主流平台
 - **速度**：快速响应，无需等待页面加载
-- **成本**：按需付费，约 ¥0.01/次请求
+- **成本**：按需付费，约 $0.01/次请求
 - **合规**：官方 API 接口，避免法律风险
 - **缓存**：24 小时缓存，重复请求免费
 
@@ -345,7 +352,7 @@ A:
 - **结果太多**：增加关键词精确度，或提高 `eps` 参数（聚类距离阈值）
 
 ### Q: 支持哪些平台？
-A: 目前支持 6 个平台：抖音、TikTok、Bilibili、微信视频号、YouTube、小红书。所有数据源均基于 TikHub API。
+A: 目前支持 8 个平台：抖音、TikTok、Bilibili、微信视频号、YouTube、小红书、X (Twitter)、Reddit。所有数据源均基于 TikHub API。
 
 ### Q: 可以使用 OpenAI 替代智谱 GLM 吗？
 A: 部分可以。当前版本：

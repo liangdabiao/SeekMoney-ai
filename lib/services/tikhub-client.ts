@@ -1130,17 +1130,25 @@ export class TikHubAPIClient {
     return result;
   }
 
-  // ==================== YouTube API 方法 ====================
+  // ==================== YouTube API 方法 (V3) ====================
 
   /**
-   * YouTube 搜索视频
+   * YouTube 通用搜索 (V3 - get_general_search)
+   * 支持高级过滤：上传时间、时长、内容类型、功能、排序
+   * 支持 need_format=true 返回清洗后的结构化数据
    */
   async searchYouTubeVideos(params: {
     search_query: string;
     language_code?: string;
-    order_by?: 'this_week' | 'this_month' | 'this_year' | 'last_hour' | 'today';
     country_code?: string;
     continuation_token?: string;
+    // V3 新增高级过滤参数
+    upload_date?: 'last_hour' | 'today' | 'this_week' | 'this_month' | 'this_year';
+    duration?: 'under_4_minutes' | '4_20_minutes' | 'over_20_minutes';
+    type?: 'video' | 'channel' | 'playlist' | 'movie';
+    features?: string;   // e.g. 'hd', '4k', 'subtitles', 'creative_commons', 'live', 'vr180'
+    sort_by?: 'relevance' | 'upload_date' | 'view_count' | 'rating';
+    need_format?: boolean;
   }): Promise<any> {
     this.requestCount++;
     this.searchRequests++;
@@ -1148,26 +1156,43 @@ export class TikHubAPIClient {
     const queryParams: any = {
       search_query: params.search_query,
       language_code: params.language_code || 'en',
-      order_by: params.order_by || 'this_month',
-      country_code: params.country_code || 'us'
+      country_code: params.country_code || 'us',
+      need_format: params.need_format !== false  // 默认启用 need_format
     };
 
     if (params.continuation_token) {
       queryParams.continuation_token = params.continuation_token;
     }
+    if (params.upload_date) {
+      queryParams.upload_date = params.upload_date;
+    }
+    if (params.duration) {
+      queryParams.duration = params.duration;
+    }
+    if (params.type) {
+      queryParams.type = params.type;
+    }
+    if (params.features) {
+      queryParams.features = params.features;
+    }
+    if (params.sort_by) {
+      queryParams.sort_by = params.sort_by;
+    }
 
     try {
       const response = await this.client.get(
-        '/api/v1/youtube/web/search_video',
+        '/api/v1/youtube/web/get_general_search',
         { params: queryParams }
       );
 
       const data = response.data;
 
-      console.log('[YouTube API] 搜索响应详情:', {
+      console.log('[YouTube API V3] 搜索响应详情:', {
         code: data.code,
         message: data.message,
-        numberOfVideos: data.data?.number_of_videos,
+        hasData: !!data.data,
+        hasFormattedData: !!data.data?.formatted_data,
+        videoCount: data.data?.formatted_data?.videos?.length || data.data?.videos?.length || 0,
         cacheUrl: data.cache_url
       });
 
@@ -1177,7 +1202,6 @@ export class TikHubAPIClient {
         this.setCache(cacheKey, data, data.cache_url);
       }
 
-      // 更新成本预估
       this.costEstimate += this.COST_PER_REQUEST;
 
       return data;
@@ -1192,11 +1216,105 @@ export class TikHubAPIClient {
   }
 
   /**
-   * 获取 YouTube 视频评论
+   * YouTube Shorts 专用搜索 (V3 - get_shorts_search)
+   * 支持 need_format=true 返回清洗后的 Shorts 结果
+   */
+  async searchYouTubeShorts(params: {
+    search_query: string;
+    language_code?: string;
+    country_code?: string;
+    continuation_token?: string;
+    need_format?: boolean;
+  }): Promise<any> {
+    this.requestCount++;
+    this.searchRequests++;
+
+    const queryParams: any = {
+      search_query: params.search_query,
+      language_code: params.language_code || 'en',
+      country_code: params.country_code || 'us',
+      need_format: params.need_format !== false
+    };
+
+    if (params.continuation_token) {
+      queryParams.continuation_token = params.continuation_token;
+    }
+
+    try {
+      const response = await this.client.get(
+        '/api/v1/youtube/web/get_shorts_search',
+        { params: queryParams }
+      );
+
+      const data = response.data;
+
+      console.log('[YouTube API V3] Shorts搜索响应:', {
+        code: data.code,
+        message: data.message,
+        hasData: !!data.data,
+        shortsCount: data.data?.formatted_data?.shorts?.length || 0,
+        cacheUrl: data.cache_url
+      });
+
+      if (data.cache_url) {
+        const cacheKey = `youtube_shorts_search_${JSON.stringify(queryParams)}`;
+        this.setCache(cacheKey, data, data.cache_url);
+      }
+
+      this.costEstimate += this.COST_PER_REQUEST;
+
+      return data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `YouTube Shorts API 搜索失败: ${error.response?.status} ${error.response?.data?.message || error.message}`
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 获取 YouTube 视频详情 (V3 - get_video_info_v3)
+   * 通过解析 HTML 和 YouTube 原生 API 提高稳定性
+   */
+  async getYouTubeVideoInfo(videoId: string): Promise<any> {
+    this.requestCount++;
+
+    try {
+      const response = await this.client.get(
+        '/api/v1/youtube/web/get_video_info_v3',
+        { params: { video_id: videoId } }
+      );
+
+      const data = response.data;
+
+      if (data.cache_url) {
+        const cacheKey = `youtube_video_info_${videoId}`;
+        this.setCache(cacheKey, data, data.cache_url);
+      }
+
+      this.costEstimate += this.COST_PER_REQUEST;
+      return data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `YouTube API 视频详情获取失败: ${error.response?.status} ${error.response?.data?.message || error.message}`
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 获取 YouTube 视频评论 (V3 - get_video_comments)
+   * 升级到 V3 爬虫，支持 sort_by=top/newest，已移除 RapidAPI 依赖
+   * 支持 need_format=true 返回清洗后的评论数据
    */
   async getYouTubeVideoComments(
     videoId: string,
-    continuationToken?: string
+    continuationToken?: string,
+    sortBy?: 'top' | 'newest'
   ): Promise<any> {
     this.requestCount++;
     this.commentsRequests++;
@@ -1204,7 +1322,7 @@ export class TikHubAPIClient {
     const queryParams: any = {
       video_id: videoId,
       need_format: true,
-      sort_by: 'top'
+      sort_by: sortBy || 'top'
     };
 
     if (continuationToken) {
@@ -1219,20 +1337,23 @@ export class TikHubAPIClient {
 
       const data = response.data;
 
-      console.log('[YouTube API] 评论响应详情:', {
+      // V3 格式化数据在 formatted_data 中
+      const commentCount = data.data?.formatted_data?.comments?.length
+        || data.data?.comments?.length || 0;
+
+      console.log('[YouTube API V3] 评论响应详情:', {
         code: data.code,
         message: data.message,
-        commentCount: data.data?.comments?.length || 0,
+        commentCount,
+        hasFormattedData: !!data.data?.formatted_data,
         cacheUrl: data.cache_url
       });
 
-      // 存储缓存
       if (data.cache_url) {
-        const cacheKey = `youtube_comments_${videoId}_${continuationToken || 'first'}`;
+        const cacheKey = `youtube_comments_${videoId}_${sortBy || 'top'}_${continuationToken || 'first'}`;
         this.setCache(cacheKey, data, data.cache_url);
       }
 
-      // 更新成本预估
       this.costEstimate += this.COST_PER_REQUEST;
 
       return data;
@@ -1267,32 +1388,112 @@ export class TikHubAPIClient {
             continuationToken
           );
 
-          if (response.code !== 200 || !response.data?.comments) {
-            console.warn('[YouTube API] 评论响应格式不符合预期，停止获取评论');
+          // V3: 优先使用 formatted_data，兼容旧格式
+          const commentList = response.data?.formatted_data?.comments
+            || response.data?.comments || [];
+
+          if (response.code !== 200 || commentList.length === 0) {
+            console.warn('[YouTube API V3] 评论响应格式不符合预期或无更多评论，停止获取');
             break;
           }
 
-          const commentList = response.data.comments;
           comments.push(...commentList);
 
           // 检查是否还有更多评论
-          continuationToken = response.data?.continuation_token || '';
+          continuationToken = response.data?.formatted_data?.continuation_token
+            || response.data?.continuation_token || '';
           hasMore = continuationToken !== '' && commentList.length >= 10;
 
-          console.log(`[YouTube API] 已获取 ${comments.length} 条评论，has_more: ${hasMore}`);
+          console.log(`[YouTube API V3] 已获取 ${comments.length} 条评论，has_more: ${hasMore}`);
 
-          // 避免请求过快
           await this.delay(300);
         }
 
         result.set(videoId, comments);
       } catch (error) {
-        console.error(`[YouTube API] Failed to fetch comments for ${videoId}:`, error);
+        console.error(`[YouTube API V3] Failed to fetch comments for ${videoId}:`, error);
         result.set(videoId, []);
       }
     }
 
     return result;
+  }
+
+  /**
+   * 获取 YouTube 频道 ID (V3 - get_channel_id_v2)
+   * 支持多种 URL 格式：@username, /channel/, /c/, /user/
+   */
+  async getYouTubeChannelId(channelUrl: string): Promise<any> {
+    this.requestCount++;
+
+    try {
+      const response = await this.client.get(
+        '/api/v1/youtube/web/get_channel_id_v2',
+        { params: { channel_url: channelUrl } }
+      );
+
+      const data = response.data;
+
+      if (data.cache_url) {
+        const cacheKey = `youtube_channel_id_${channelUrl}`;
+        this.setCache(cacheKey, data, data.cache_url);
+      }
+
+      this.costEstimate += this.COST_PER_REQUEST;
+      return data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `YouTube API 频道ID获取失败: ${error.response?.status} ${error.response?.data?.message || error.message}`
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 获取 YouTube 频道视频列表 (V3 - get_channel_videos_v3)
+   * 支持分页，统一格式化输出
+   */
+  async getYouTubeChannelVideos(params: {
+    channel_id: string;
+    continuation_token?: string;
+    need_format?: boolean;
+  }): Promise<any> {
+    this.requestCount++;
+
+    const queryParams: any = {
+      channel_id: params.channel_id,
+      need_format: params.need_format !== false
+    };
+
+    if (params.continuation_token) {
+      queryParams.continuation_token = params.continuation_token;
+    }
+
+    try {
+      const response = await this.client.get(
+        '/api/v1/youtube/web/get_channel_videos_v3',
+        { params: queryParams }
+      );
+
+      const data = response.data;
+
+      if (data.cache_url) {
+        const cacheKey = `youtube_channel_videos_${params.channel_id}_${params.continuation_token || 'first'}`;
+        this.setCache(cacheKey, data, data.cache_url);
+      }
+
+      this.costEstimate += this.COST_PER_REQUEST;
+      return data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `YouTube API 频道视频获取失败: ${error.response?.status} ${error.response?.data?.message || error.message}`
+        );
+      }
+      throw error;
+    }
   }
 
   // ==================== Xiaohongshu (小红书) API 方法 ====================
@@ -1455,6 +1656,292 @@ export class TikHubAPIClient {
       } catch (error) {
         console.error(`[Xiaohongshu API] Failed to fetch comments for ${noteId}:`, error);
         result.set(noteId, []);
+      }
+    }
+
+    return result;
+  }
+  // ==================== Twitter (X) API 方法 ====================
+
+  /**
+   * Twitter 搜索推文
+   */
+  async searchTwitterPosts(params: {
+    keyword: string;
+    cursor?: string;
+  }): Promise<any> {
+    this.requestCount++;
+    this.searchRequests++;
+
+    const queryParams: any = {
+      keyword: params.keyword
+    };
+
+    if (params.cursor) {
+      queryParams.cursor = params.cursor;
+    }
+
+    try {
+      const response = await this.client.get(
+        '/api/v1/twitter/web/fetch_search_timeline',
+        { params: queryParams }
+      );
+
+      const data = response.data;
+
+      console.log('[Twitter API] 搜索响应详情:', {
+        code: data.code,
+        message: data.message,
+        hasData: !!data.data,
+        cacheUrl: data.cache_url
+      });
+
+      // 存储缓存
+      if (data.cache_url) {
+        const cacheKey = `twitter_search_${JSON.stringify(params)}`;
+        this.setCache(cacheKey, data, data.cache_url);
+      }
+
+      this.costEstimate += this.COST_PER_REQUEST;
+      return data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `Twitter API 搜索失败: ${error.response?.status} ${error.response?.data?.message || error.message}`
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 获取 Twitter 推文评论
+   */
+  async getTwitterTweetComments(
+    tweetId: string,
+    cursor?: string
+  ): Promise<any> {
+    this.requestCount++;
+    this.commentsRequests++;
+
+    const queryParams: any = {
+      tweet_id: tweetId
+    };
+
+    if (cursor) {
+      queryParams.cursor = cursor;
+    }
+
+    try {
+      const response = await this.client.get(
+        '/api/v1/twitter/web/fetch_tweet_comments',
+        { params: queryParams }
+      );
+
+      const data = response.data;
+
+      console.log('[Twitter API] 评论响应详情:', {
+        code: data.code,
+        message: data.message,
+        commentCount: data.data?.comments?.length || 0,
+        cacheUrl: data.cache_url
+      });
+
+      if (data.cache_url) {
+        const cacheKey = `twitter_comments_${tweetId}_${cursor || 'first'}`;
+        this.setCache(cacheKey, data, data.cache_url);
+      }
+
+      this.costEstimate += this.COST_PER_REQUEST;
+      return data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `Twitter API 评论获取失败: ${error.response?.status} ${error.response?.data?.message || error.message}`
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 批量获取 Twitter 推文评论
+   */
+  async getTwitterTweetCommentsBatch(
+    tweetIds: string[],
+    maxCommentsPerTweet: number
+  ): Promise<Map<string, any[]>> {
+    const result = new Map<string, any[]>();
+
+    for (const tweetId of tweetIds) {
+      try {
+        const comments: any[] = [];
+        let cursor = '';
+        let hasMore = true;
+
+        while (hasMore && comments.length < maxCommentsPerTweet) {
+          const response = await this.getTwitterTweetComments(
+            tweetId,
+            cursor
+          );
+
+          if (response.code !== 200 || !response.data?.comments) {
+            console.warn('[Twitter API] 评论响应格式不符合预期，停止获取评论');
+            break;
+          }
+
+          const commentList = response.data.comments;
+          comments.push(...commentList);
+
+          cursor = response.data?.cursor || '';
+          hasMore = cursor !== '' && commentList.length >= 10;
+
+          console.log(`[Twitter API] 已获取 ${comments.length} 条评论，has_more: ${hasMore}`);
+
+          await this.delay(300);
+        }
+
+        result.set(tweetId, comments);
+      } catch (error) {
+        console.error(`[Twitter API] Failed to fetch comments for ${tweetId}:`, error);
+        result.set(tweetId, []);
+      }
+    }
+
+    return result;
+  }
+
+  // ==================== Reddit API 方法 ====================
+
+  /**
+   * Reddit 搜索帖子
+   */
+  async searchRedditPosts(params: {
+    keyword: string;
+    sort?: 'relevance' | 'hot' | 'top' | 'new' | 'comments';
+    time?: 'all' | 'year' | 'month' | 'week' | 'day' | 'hour';
+    after?: string;
+  }): Promise<any> {
+    this.requestCount++;
+    this.searchRequests++;
+
+    const queryParams: any = {
+      keyword: params.keyword,
+      sort: params.sort || 'relevance',
+      time: params.time || 'month'
+    };
+
+    if (params.after) {
+      queryParams.after = params.after;
+    }
+
+    try {
+      const response = await this.client.get(
+        '/api/v1/reddit/search_posts',
+        { params: queryParams }
+      );
+
+      const data = response.data;
+
+      console.log('[Reddit API] 搜索响应详情:', {
+        code: data.code,
+        message: data.message,
+        hasData: !!data.data,
+        cacheUrl: data.cache_url
+      });
+
+      if (data.cache_url) {
+        const cacheKey = `reddit_search_${JSON.stringify(params)}`;
+        this.setCache(cacheKey, data, data.cache_url);
+      }
+
+      this.costEstimate += this.COST_PER_REQUEST;
+      return data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `Reddit API 搜索失败: ${error.response?.status} ${error.response?.data?.message || error.message}`
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 获取 Reddit 帖子评论
+   */
+  async getRedditPostComments(
+    postId: string,
+    sort?: 'best' | 'top' | 'new' | 'controversial' | 'old'
+  ): Promise<any> {
+    this.requestCount++;
+    this.commentsRequests++;
+
+    const queryParams: any = {
+      post_id: postId,
+      sort: sort || 'top'
+    };
+
+    try {
+      const response = await this.client.get(
+        '/api/v1/reddit/fetch_post_comments',
+        { params: queryParams }
+      );
+
+      const data = response.data;
+
+      console.log('[Reddit API] 评论响应详情:', {
+        code: data.code,
+        message: data.message,
+        commentCount: data.data?.comments?.length || 0,
+        cacheUrl: data.cache_url
+      });
+
+      if (data.cache_url) {
+        const cacheKey = `reddit_comments_${postId}_${sort || 'top'}`;
+        this.setCache(cacheKey, data, data.cache_url);
+      }
+
+      this.costEstimate += this.COST_PER_REQUEST;
+      return data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(
+          `Reddit API 评论获取失败: ${error.response?.status} ${error.response?.data?.message || error.message}`
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 批量获取 Reddit 帖子评论
+   */
+  async getRedditPostCommentsBatch(
+    postIds: string[],
+    maxCommentsPerPost: number
+  ): Promise<Map<string, any[]>> {
+    const result = new Map<string, any[]>();
+
+    for (const postId of postIds) {
+      try {
+        const response = await this.getRedditPostComments(postId);
+
+        if (response.code !== 200 || !response.data?.comments) {
+          console.warn('[Reddit API] 评论响应格式不符合预期');
+          result.set(postId, []);
+          continue;
+        }
+
+        const comments = response.data.comments.slice(0, maxCommentsPerPost);
+        result.set(postId, comments);
+
+        console.log(`[Reddit API] 帖子 ${postId} 获取 ${comments.length} 条评论`);
+
+        await this.delay(300);
+      } catch (error) {
+        console.error(`[Reddit API] Failed to fetch comments for ${postId}:`, error);
+        result.set(postId, []);
       }
     }
 

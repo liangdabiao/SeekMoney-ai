@@ -5,6 +5,8 @@ import { BilibiliServiceAdapter } from './bilibili-service';
 import { WeChatServiceAdapter } from './wechat-service';
 import { YouTubeServiceAdapter } from './youtube-service';
 import { XiaohongshuServiceAdapter } from './xiaohongshu-service';
+import { TwitterServiceAdapter } from './twitter-service';
+import { RedditServiceAdapter } from './reddit-service';
 import { IDataSourceService, DataSourceType, DataSourceResult, DeepCrawlResult, DeepCrawlOptions, TikTokCrawlOptions } from './data-source-interface';
 
 // 数据源工厂类
@@ -23,13 +25,17 @@ export class DataSourceFactory {
         return new YouTubeServiceAdapter();
       case 'xiaohongshu':
         return new XiaohongshuServiceAdapter();
+      case 'twitter':
+        return new TwitterServiceAdapter();
+      case 'reddit':
+        return new RedditServiceAdapter();
       default:
         throw new Error(`不支持的数据源类型: ${type}`);
     }
   }
 
   static getSupportedSources(): DataSourceType[] {
-    return ['tikhub', 'tiktok', 'bilibili', 'wechat', 'youtube', 'xiaohongshu'];
+    return ['tikhub', 'tiktok', 'bilibili', 'wechat', 'youtube', 'xiaohongshu', 'twitter', 'reddit'];
   }
 
   static getSourceDisplayName(type: DataSourceType): string {
@@ -39,7 +45,9 @@ export class DataSourceFactory {
       'bilibili': 'Bilibili API',
       'wechat': '微信视频号',
       'youtube': 'YouTube API',
-      'xiaohongshu': '小红书 API'
+      'xiaohongshu': '小红书 API',
+      'twitter': 'X (Twitter) API',
+      'reddit': 'Reddit API'
     };
     return names[type] || type;
   }
@@ -51,14 +59,17 @@ export class DataSourceFactory {
       'bilibili': 'Bilibili API（哔哩哔哩，按需付费）',
       'wechat': '微信视频号 API（按需付费）',
       'youtube': 'YouTube API（按需付费）',
-      'xiaohongshu': '小红书 API（按需付费）'
+      'xiaohongshu': '小红书 API（按需付费）',
+      'twitter': 'X (Twitter) API（按需付费）',
+      'reddit': 'Reddit API（按需付费）'
     };
     return descriptions[type] || '';
   }
 
   static supportsDeepCrawl(type: DataSourceType): boolean {
-    // TikHub、TikTok、Bilibili、WeChat、YouTube 和 Xiaohongshu 都支持深度抓取
-    return type === 'tikhub' || type === 'tiktok' || type === 'bilibili' || type === 'wechat' || type === 'youtube' || type === 'xiaohongshu';
+    return type === 'tikhub' || type === 'tiktok' || type === 'bilibili' ||
+           type === 'wechat' || type === 'youtube' || type === 'xiaohongshu' ||
+           type === 'twitter' || type === 'reddit';
   }
 
   // TikHub专用：创建TikHub数据源
@@ -90,5 +101,14 @@ export class DataSourceFactory {
   static createXiaohongshuDataSource(): XiaohongshuServiceAdapter {
     return new XiaohongshuServiceAdapter();
   }
-}
 
+  // Twitter专用：创建Twitter数据源
+  static createTwitterDataSource(): TwitterServiceAdapter {
+    return new TwitterServiceAdapter();
+  }
+
+  // Reddit专用：创建Reddit数据源
+  static createRedditDataSource(): RedditServiceAdapter {
+    return new RedditServiceAdapter();
+  }
+}
