@@ -4,7 +4,10 @@
 import { ClusteringService, createClusteringService } from './ClusteringService';
 import { DataCleaner } from './DataCleaner';
 import { createEmbeddingProvider } from './EmbeddingProvider';
-import { cosineDistance } from 'ml-distance';
+import { similarity } from 'ml-distance';
+
+// 余弦距离 = 1 - 余弦相似度
+const cosineDistance = (a: number[], b: number[]): number => 1 - similarity.cosine(a, b);
 
 // ==================== 测试数据 ====================
 

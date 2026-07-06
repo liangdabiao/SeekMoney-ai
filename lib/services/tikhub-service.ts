@@ -3,7 +3,6 @@
 
 import {
   TikHubAPIClient,
-  SearchRequest,
   SearchResultItem,
   CommentItem,
   createTikHubClient
@@ -12,8 +11,7 @@ import {
   IDataSourceService,
   DataSourceResult,
   DeepCrawlResult,
-  DeepCrawlOptions,
-  TikTokCrawlOptions
+  DeepCrawlOptions
 } from './data-source-interface';
 
 /**

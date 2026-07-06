@@ -25,26 +25,23 @@ export interface SearchRequest {
   publish_time?: '0' | '1' | '7' | '180';  // 0=不限, 1=一天, 7=一周, 180=半年
   filter_duration?: '0' | '0-1' | '1-5' | '5-10000';  // 时长筛选
   content_type?: '0' | '1' | '2' | '3';  // 0=不限, 1=视频, 2=图片, 3=文章
+  search_id?: string;
+  backtrace?: string;
 }
 
 /**
  * 搜索响应数据
+ * 实际响应存在多版本/多层嵌套，data 字段使用宽松类型以便业务层做兼容
  */
 export interface SearchResponse {
   code: number;
   message: string;
   message_zh?: string;
-  data?: {
-    status_code: number;
-    data?: SearchResultItem[];
-    cursor?: number;
-    has_more?: boolean;
-    cursor_text?: string;
-  };
+  data?: any;
   cursor?: number;
   search_id?: string;
   backtrace?: string;
-  has_more?: boolean;
+  has_more?: boolean | number;
   cache_url?: string;
   cache_message?: string;
 }
@@ -477,7 +474,7 @@ export class TikHubAPIClient {
 
           // 检查是否还有更多评论
           // has_more 和 cursor 在 response.data 的根级别
-          hasMore = (response.data.has_more === 1 || response.data.has_more === true);
+          hasMore = Boolean(response.data.has_more);
           cursor = response.data.cursor || 0;
 
           console.log(`[TikHub API] 已获取 ${comments.length} 条评论，has_more: ${hasMore}, cursor: ${cursor}`);

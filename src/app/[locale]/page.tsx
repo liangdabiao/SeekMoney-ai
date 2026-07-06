@@ -4,7 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useTranslations, useLocale } from 'next-intl';
-import AnalysisForm, { TikTokConfig } from "@/components/AnalysisForm";
+import AnalysisForm, { TikTokConfig, DataSourceType } from "@/components/AnalysisForm";
 import LoadingAnimation from "@/components/LoadingAnimation";
 import ResultsTable from "@/components/ResultsTable";
 import DetailModal from "@/components/DetailModal";
@@ -97,6 +97,8 @@ interface JobResponse {
   jobId: string;
   status: string;
   progress: string;
+  progressStage?: 'init' | 'validating' | 'crawling' | 'clustering' | 'analyzing' | 'completed' | 'failed';
+  progressPercent?: number;
   keywords?: string[];
   results?: ClusterResult[];
   rawData?: RawData;
@@ -122,10 +124,6 @@ export default function Home() {
   const locale = useLocale();
 
   const [jobId, setJobId] = useState<string | null>(null);
-  const [results, setResults] = useState<ClusterResult[]>([]);
-  const [rawData, setRawData] = useState<RawData | undefined>(undefined);
-  const [clusteredData, setClusteredData] = useState<ClusteredDataGroup[] | undefined>(undefined);
-  const [keywords, setKeywords] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // 模态框状态管理
@@ -133,7 +131,7 @@ export default function Home() {
   const [selectedResult, setSelectedResult] = useState<ClusterResult | null>(null);
 
   // 使用 useSWR 轮询任务状态
-  const { data: jobData, error: jobError } = useSWR<JobResponse>(
+  const { data: jobData } = useSWR<JobResponse>(
     jobId ? `/api/jobs/${jobId}` : null,
     fetcher,
     {
@@ -145,24 +143,22 @@ export default function Home() {
       },
       revalidateOnFocus: false,
       onSuccess: (data) => {
-        if (data.status === "completed" && data.results) {
-          setResults(data.results);
-          setRawData(data.rawData);
-          setClusteredData(data.clusteredData);
-          if (data.keywords) {
-            setKeywords(data.keywords);
-          }
-          setIsLoading(false);
-        } else if (data.status === "failed") {
+        if (data.status === "completed" || data.status === "failed") {
           setIsLoading(false);
         }
       }
     }
   );
 
+  // 以 SWR 数据为单一数据源（避免 useState 与 SWR 双数据源不一致）
+  const results = jobData?.results ?? [];
+  const rawData = jobData?.rawData;
+  const clusteredData = jobData?.clusteredData;
+  const keywords = jobData?.keywords ?? [];
+
   const handleAnalysisSubmit = async (
     submittedKeywords: string[],
-    dataSource: 'tiktok' | 'tikhub',
+    dataSource: DataSourceType,
     deepCrawl: boolean,
     maxVideos: number,
     tiktokConfig?: TikTokConfig
@@ -170,10 +166,6 @@ export default function Home() {
     try {
       setIsLoading(true);
       setJobId(null);
-      setResults([]);
-      setRawData(undefined);
-      setClusteredData(undefined);
-      setKeywords(submittedKeywords);
 
       const response = await fetch('/api/analyze', {
         method: 'POST',
@@ -275,6 +267,8 @@ export default function Home() {
               <LoadingAnimation
                 progressText={jobData?.progress || tLoading('initializing')}
                 status={jobData?.status || "processing"}
+                progressStage={jobData?.progressStage}
+                progressPercent={jobData?.progressPercent}
               />
             </div>
           )}

@@ -7,7 +7,7 @@ import { YouTubeServiceAdapter } from './youtube-service';
 import { XiaohongshuServiceAdapter } from './xiaohongshu-service';
 import { TwitterServiceAdapter } from './twitter-service';
 import { RedditServiceAdapter } from './reddit-service';
-import { IDataSourceService, DataSourceType, DataSourceResult, DeepCrawlResult, DeepCrawlOptions, TikTokCrawlOptions } from './data-source-interface';
+import { IDataSourceService, DataSourceType } from './data-source-interface';
 
 // 数据源工厂类
 export class DataSourceFactory {
@@ -34,8 +34,10 @@ export class DataSourceFactory {
     }
   }
 
-  static getSupportedSources(): DataSourceType[] {
-    return ['tikhub', 'tiktok', 'bilibili', 'wechat', 'youtube', 'xiaohongshu', 'twitter', 'reddit'];
+  // 当前后端真正实现并启用的数据源（与 /api/analyze 白名单保持一致）
+  // 注：twitter / reddit 工厂类已存在但暂未在后端启用，避免用户误选后回退
+  static getEnabledSources(): DataSourceType[] {
+    return ['tikhub', 'tiktok', 'bilibili', 'wechat', 'youtube', 'xiaohongshu'];
   }
 
   static getSourceDisplayName(type: DataSourceType): string {
@@ -67,48 +69,6 @@ export class DataSourceFactory {
   }
 
   static supportsDeepCrawl(type: DataSourceType): boolean {
-    return type === 'tikhub' || type === 'tiktok' || type === 'bilibili' ||
-           type === 'wechat' || type === 'youtube' || type === 'xiaohongshu' ||
-           type === 'twitter' || type === 'reddit';
-  }
-
-  // TikHub专用：创建TikHub数据源
-  static createTikHubDataSource(): TikHubServiceAdapter {
-    return new TikHubServiceAdapter();
-  }
-
-  // TikTok专用：创建TikTok数据源
-  static createTikTokDataSource(): TikTokServiceAdapter {
-    return new TikTokServiceAdapter();
-  }
-
-  // Bilibili专用：创建Bilibili数据源
-  static createBilibiliDataSource(): BilibiliServiceAdapter {
-    return new BilibiliServiceAdapter();
-  }
-
-  // WeChat专用：创建WeChat数据源
-  static createWeChatDataSource(): WeChatServiceAdapter {
-    return new WeChatServiceAdapter();
-  }
-
-  // YouTube专用：创建YouTube数据源
-  static createYouTubeDataSource(): YouTubeServiceAdapter {
-    return new YouTubeServiceAdapter();
-  }
-
-  // Xiaohongshu专用：创建Xiaohongshu数据源
-  static createXiaohongshuDataSource(): XiaohongshuServiceAdapter {
-    return new XiaohongshuServiceAdapter();
-  }
-
-  // Twitter专用：创建Twitter数据源
-  static createTwitterDataSource(): TwitterServiceAdapter {
-    return new TwitterServiceAdapter();
-  }
-
-  // Reddit专用：创建Reddit数据源
-  static createRedditDataSource(): RedditServiceAdapter {
-    return new RedditServiceAdapter();
+    return this.getEnabledSources().includes(type);
   }
 }

@@ -127,7 +127,7 @@ cp .env.example .env.local
 # TikHub API 配置 (必需 - 数据采集)
 # 注册地址: https://api.tikhub.io/
 TIKHUB_API_TOKEN=your_tikhub_api_token_here
-TIKHUB_USE_CHINA_DOMAIN=false
+TIKHUB_USE_CHINA_DOMAIN=true
 TIKHUB_ENABLE_CACHE=true
 
 # LLM API 配置 (必需 - AI 分析)
@@ -376,5 +376,12 @@ A:
 ## 许可证
 
 本项目采用 MIT License。
+
+
+
+## 特别感谢
+
+https://linux.do 
+社区 佬友支持！
 
 项目前端和思路参考和fork了： https://github.com/weiyf2/deeppoint-ai ，感谢作者开源。

@@ -64,11 +64,9 @@ export class PriorityScorer {
   /**
    * 计算竞争度（0-5分，反向指标）
    * 5分=蓝海，0分=红海
-   * 基于LLM分析的现有解决方案数量
+   * 基于LLM分析的现有解决方案数量，使用连续函数以区分 4 vs 100 个竞品
    */
   calculateCompetition(existingSolutions: Array<{ name: string; limitation: string }>): number {
-    const solutionCount = existingSolutions.length;
-
     // 过滤掉"待调研"、"解析失败"等无效方案
     const validSolutions = existingSolutions.filter(
       s => !s.name.includes('待调研') &&
@@ -78,18 +76,15 @@ export class PriorityScorer {
 
     const validCount = validSolutions.length;
 
-    // 评分规则
-    if (validCount === 0) {
-      return 5.0; // 蓝海，无竞品
-    } else if (validCount === 1) {
-      return 4.0; // 低竞争
-    } else if (validCount === 2) {
-      return 3.0; // 中等竞争
-    } else if (validCount === 3) {
-      return 2.0; // 较高竞争
-    } else {
-      return 1.0; // 红海
-    }
+    // 连续函数：f(n) = 5 / (1 + n)
+    //   0 个 = 5.0 (纯蓝海)
+    //   1 个 = 2.5
+    //   4 个 = 1.0
+    //   9 个 = 0.5
+    //  99 个 ≈ 0.05 (极度红海)
+    // 这样既能体现 4 vs 100 的差距，又保留对 0 竞品的强奖励
+    const score = 5 / (1 + validCount);
+    return Math.round(score * 100) / 100;
   }
 
   /**

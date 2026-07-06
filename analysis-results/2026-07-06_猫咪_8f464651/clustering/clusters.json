@@ -1,0 +1,19 @@
+{
+  "exportedAt": "2026-07-06T08:47:25.260Z",
+  "stats": {
+    "totalClusters": 1,
+    "totalVideos": 10,
+    "totalComments": 0,
+    "noisePoints": 0,
+    "avgClusterSize": 10,
+    "processingTime": 129564
+  },
+  "clusters": [
+    {
+      "clusterId": null,
+      "size": 10,
+      "videos": [],
+      "comments": []
+    }
+  ]
+}

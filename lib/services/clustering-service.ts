@@ -8,13 +8,21 @@ export interface SemanticCluster {
   representative_text: string;
   size: number;
   texts: string[];
+  keywords?: string[];
 }
 
 export interface ClusteringResult {
   success: boolean;
   clusters: SemanticCluster[];
+  noise: string[];
+  noiseCount: number;
   total_clusters: number;
   total_texts: number;
+  clustered_texts?: number;
+  provider?: string;
+  model?: string;
+  duration?: number;
+  cost?: number;
   error?: string;
 }
 
@@ -110,7 +118,8 @@ export class ClusteringService {
       const clusters: SemanticCluster[] = result.clusters.map(c => ({
         representative_text: c.representative,
         size: c.size,
-        texts: c.texts
+        texts: c.texts,
+        keywords: c.keywords
       }));
 
       console.log(`[TS Clustering] 聚类完成: ${clusters.length} 个簇, ${result.noiseCount} 个噪声点`);
@@ -118,8 +127,15 @@ export class ClusteringService {
       return {
         success: true,
         clusters,
+        noise: result.noise,
+        noiseCount: result.noiseCount,
         total_clusters: clusters.length,
-        total_texts: result.cleanedTexts
+        total_texts: result.cleanedTexts,
+        clustered_texts: result.clusteredTexts,
+        provider: result.provider,
+        model: result.model,
+        duration: result.duration,
+        cost: result.cost
       };
 
     } catch (error: any) {
@@ -127,6 +143,8 @@ export class ClusteringService {
       return {
         success: false,
         clusters: [],
+        noise: [],
+        noiseCount: 0,
         total_clusters: 0,
         total_texts: texts.length,
         error: error.message
@@ -238,7 +256,7 @@ export class ClusteringService {
   /**
    * 计算文本代表性分数
    */
-  private calculateRepresentativeness(text: string, cluster: string[]): number {
+  private calculateRepresentativeness(text: string, _cluster: string[]): number {
     const textLength = text.length;
 
     // 惩罚过短或过长的文本

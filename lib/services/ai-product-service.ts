@@ -37,6 +37,10 @@ export class AIProductService {
       throw new Error('GLM API Key未配置');
     }
 
+    if (!Array.isArray(texts) || texts.length === 0) {
+      throw new Error('没有可分析的内容');
+    }
+
     const prompt = this.buildAIProductPrompt(texts, locale);
 
     try {
@@ -68,9 +72,14 @@ export class AIProductService {
       const analysis = this.parseAIProductResponse(content);
       return analysis;
 
-    } catch {
-      // 返回默认分析结果
-      return this.getDefaultAnalysis(texts);
+    } catch (error) {
+      // 抛出错误，让上层决定如何处理（不静默吞错）
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const message = (error.response?.data as any)?.error?.message || error.message;
+        throw new Error(`AI分析API请求失败 (${status ?? 'network'}): ${message}`);
+      }
+      throw error instanceof Error ? error : new Error('AI分析失败');
     }
   }
 
@@ -148,7 +157,7 @@ ${textsContent}
     return 'Medium';
   }
 
-  private getDefaultAnalysis(texts: string[]): AIProductAnalysis {
+  private getDefaultAnalysis(_texts: string[]): AIProductAnalysis {
     return {
       product_name: '基于用户需求的AI助手',
       product_category: 'AI智能助手',

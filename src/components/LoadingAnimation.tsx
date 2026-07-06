@@ -3,35 +3,36 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from 'next-intl';
 
+type JobStage = 'init' | 'validating' | 'crawling' | 'clustering' | 'analyzing' | 'completed' | 'failed';
+
 interface LoadingAnimationProps {
   progressText: string;
   status: string;
+  progressStage?: JobStage;
+  progressPercent?: number;
 }
 
 type AnimationType = "data-stream" | "fluid" | "crystal" | "neural";
 
-// 根据进度文本判断当前阶段
-function getAnimationType(progressText: string): AnimationType {
-  if (
-    progressText.includes("初始化") ||
-    progressText.includes("验证") ||
-    progressText.includes("抓取")
-  ) {
-    return "data-stream";
+// 根据结构化阶段映射动画类型
+function getAnimationTypeFromStage(stage: JobStage | undefined): AnimationType {
+  switch (stage) {
+    case 'init':
+    case 'validating':
+    case 'crawling':
+      return "data-stream";
+    case 'clustering':
+      return "fluid";
+    case 'analyzing':
+      return "neural";
+    case 'completed':
+    case 'failed':
+    default:
+      return "data-stream";
   }
-  if (progressText.includes("语义聚类分析")) {
-    return "fluid";
-  }
-  if (progressText.includes("条视频") || progressText.includes("条评论")) {
-    return "crystal";
-  }
-  if (progressText.includes("LLM") || progressText.includes("分析聚类")) {
-    return "neural";
-  }
-  return "data-stream";
 }
 
-// 获取阶段信息
+// 获取阶段信息（兼容旧调用方，实际展示走 getStageInfoTranslated）
 function getStageInfo(animationType: AnimationType): { title: string; badge: string; step: string } {
   switch (animationType) {
     case "data-stream":
@@ -44,56 +45,35 @@ function getStageInfo(animationType: AnimationType): { title: string; badge: str
       return { title: "深度分析中", badge: "LLM 推理", step: "Step 4/4" };
   }
 }
+void getStageInfo;
 
-// 计算进度百分比
-function getProgressPercent(progressText: string): number {
-  if (progressText.includes("初始化")) return 5;
-  if (progressText.includes("验证")) return 10;
-  if (progressText.includes("抓取")) return 20;
-  if (progressText.includes("语义聚类分析")) return 35;
-  if (progressText.includes("条视频")) return 45;
-  if (progressText.includes("条评论")) return 55;
-  if (progressText.includes("LLM")) return 70;
-  if (progressText.includes("分析聚类")) {
-    const match = progressText.match(/(\d+)\/(\d+)/);
-    if (match) {
-      const current = parseInt(match[1]);
-      const total = parseInt(match[2]);
-      return 70 + (current / total) * 25;
-    }
-    return 80;
-  }
+// 根据结构化阶段获取进度百分比
+function getProgressPercentFromStage(stage: JobStage | undefined, fallbackPercent?: number): number {
+  if (typeof fallbackPercent === 'number') return Math.max(0, Math.min(100, fallbackPercent));
+  const stageMap: Record<JobStage, number> = {
+    init: 5,
+    validating: 10,
+    crawling: 20,
+    clustering: 50,
+    analyzing: 80,
+    completed: 100,
+    failed: 0
+  };
+  if (stage && stage in stageMap) return stageMap[stage];
   return 10;
 }
 
-// 获取详细日志文本
+// 获取详细日志文本（直接使用服务端下发的 progressText）
 function getLogDetail(progressText: string): string {
-  if (progressText.includes("初始化")) return "正在准备分析环境...";
-  if (progressText.includes("验证")) return "正在验证数据源连接...";
-  if (progressText.includes("抓取")) {
-    const match = progressText.match(/"([^"]+)"/);
-    return match ? `正在抓取「${match[1]}」相关内容...` : "正在抓取相关内容...";
-  }
-  if (progressText.includes("语义聚类")) return "正在分析文本语义特征...";
-  if (progressText.includes("条视频")) {
-    const match = progressText.match(/(\d+)/);
-    return match ? `正在处理 ${match[1]} 条视频内容...` : "正在处理视频内容...";
-  }
-  if (progressText.includes("条评论")) {
-    const match = progressText.match(/(\d+)/);
-    return match ? `正在处理 ${match[1]} 条评论内容...` : "正在处理评论内容...";
-  }
-  if (progressText.includes("LLM")) return "AI 正在深度理解用户痛点...";
-  if (progressText.includes("分析聚类")) {
-    const match = progressText.match(/(\d+)\/(\d+)/);
-    return match ? `正在分析第 ${match[1]} 个痛点聚类...` : "正在分析痛点聚类...";
-  }
-  return "正在处理中...";
+  return progressText || "正在处理中...";
 }
+void getLogDetail;
 
-export default function LoadingAnimation({ progressText, status }: LoadingAnimationProps) {
+export default function LoadingAnimation({ progressText, progressStage, progressPercent }: LoadingAnimationProps) {
   const t = useTranslations('loading');
-  const [currentAnimation, setCurrentAnimation] = useState<AnimationType>("data-stream");
+  const [currentAnimation, setCurrentAnimation] = useState<AnimationType>(
+    getAnimationTypeFromStage(progressStage)
+  );
   const [isTransitioning, setIsTransitioning] = useState(false);
   const blobRef = useRef<SVGPathElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
@@ -138,7 +118,7 @@ export default function LoadingAnimation({ progressText, status }: LoadingAnimat
   };
 
   useEffect(() => {
-    const newAnimation = getAnimationType(progressText);
+    const newAnimation = getAnimationTypeFromStage(progressStage);
     if (newAnimation !== currentAnimation) {
       setIsTransitioning(true);
       setTimeout(() => {
@@ -146,7 +126,7 @@ export default function LoadingAnimation({ progressText, status }: LoadingAnimat
         setIsTransitioning(false);
       }, 300);
     }
-  }, [progressText, currentAnimation]);
+  }, [progressStage, currentAnimation]);
 
   // 流体动画
   useEffect(() => {
@@ -189,7 +169,7 @@ export default function LoadingAnimation({ progressText, status }: LoadingAnimat
   }, [currentAnimation]);
 
   const stageInfo = getStageInfoTranslated(currentAnimation);
-  const progress = getProgressPercent(progressText);
+  const progress = getProgressPercentFromStage(progressStage, progressPercent);
   const logDetail = getLogDetailTranslated(progressText);
 
   return (

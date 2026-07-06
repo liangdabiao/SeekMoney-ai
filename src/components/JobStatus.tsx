@@ -2,32 +2,50 @@
 
 import { useTranslations } from 'next-intl';
 
+type JobStage = 'init' | 'validating' | 'crawling' | 'clustering' | 'analyzing' | 'completed' | 'failed';
+
 interface JobStatusProps {
   status: string;
   progressText: string;
   error?: string;
+  progressStage?: JobStage;
+  progressPercent?: number;
 }
 
-export default function JobStatus({ status, progressText, error }: JobStatusProps) {
+export default function JobStatus({ status, progressText, error, progressStage, progressPercent }: JobStatusProps) {
   const t = useTranslations('jobStatus');
 
-  const getProgressBarWidth = () => {
-    const progressSteps = [
-      "正在抓取数据...",
-      "正在处理内容...",
-      "正在进行聚类分析...",
-      "正在调用LLM分析...",
-      "正在生成报告..."
-    ];
-
+  const getProgressBarWidth = (): string => {
     if (status === "completed") return "100%";
     if (status === "failed") return "0%";
-
-    const currentStepIndex = progressSteps.indexOf(progressText);
-    if (currentStepIndex === -1) return "10%";
-
-    return `${((currentStepIndex + 1) / progressSteps.length) * 100}%`;
+    if (typeof progressPercent === 'number') {
+      return `${Math.max(0, Math.min(100, progressPercent))}%`;
+    }
+    // 兜底：根据阶段返回估算百分比
+    const stageMap: Record<JobStage, number> = {
+      init: 5,
+      validating: 10,
+      crawling: 30,
+      clustering: 55,
+      analyzing: 85,
+      completed: 100,
+      failed: 0
+    };
+    if (progressStage && progressStage in stageMap) {
+      return `${stageMap[progressStage]}%`;
+    }
+    return "10%";
   };
+
+  const getStageLabel = (): string => {
+    if (!progressStage) return '';
+    try {
+      return t(`stages.${progressStage}` as any);
+    } catch {
+      return progressStage;
+    }
+  };
+  void getStageLabel; // 预留：未来 UI 可能按阶段显示标签
 
   if (status === "failed" && error) {
     return (

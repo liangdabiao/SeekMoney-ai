@@ -7,11 +7,6 @@ import { GLMService } from './glm-service';
 import { PriorityScorer, PriorityScore } from './priority-scoring';
 import { AnalysisStorageService, VideoData, CommentData, ClusterData, ClusteringStats, AnalysisSummary, AnalysisMetadata } from './analysis-storage-service';
 
-// 声明全局变量类型
-declare global {
-  var _jobManagerInstance: any;
-}
-
 // 原始视频数据接口
 export interface RawVideoData {
   title: string;
@@ -44,6 +39,8 @@ export interface Job {
   jobId: string;
   status: 'processing' | 'completed' | 'failed';
   progress: string;
+  progressStage: 'init' | 'validating' | 'crawling' | 'clustering' | 'analyzing' | 'completed' | 'failed';
+  progressPercent: number;
   keywords: string[];
   limit: number;
   dataSource: DataSourceType;
@@ -155,6 +152,8 @@ class JobManagerImpl {
       jobId,
       status: 'processing',
       progress: '正在初始化...',
+      progressStage: 'init',
+      progressPercent: 5,
       keywords,
       limit,
       dataSource,
@@ -203,12 +202,21 @@ class JobManagerImpl {
   }
 
   // 更新任务状态
-  private updateJobStatus(jobId: string, status: Job['status'], progress?: string, error?: string): void {
+  private updateJobStatus(
+    jobId: string,
+    status: Job['status'],
+    progress?: string,
+    error?: string,
+    stage?: Job['progressStage'],
+    percent?: number
+  ): void {
     const job = this.jobs.get(jobId);
     if (job) {
       job.status = status;
       if (progress) job.progress = progress;
       if (error) job.error = error;
+      if (stage) job.progressStage = stage;
+      if (typeof percent === 'number') job.progressPercent = Math.max(0, Math.min(100, percent));
     }
   }
 
@@ -231,7 +239,7 @@ class JobManagerImpl {
 
       // 步骤1: 检查数据源可用性（如果支持）
       if (dataSourceService.checkAvailability) {
-        this.updateJobStatus(jobId, 'processing', `正在验证${sourceName}数据源...`);
+        this.updateJobStatus(jobId, 'processing', `正在验证${sourceName}数据源...`, undefined, 'validating', 10);
         console.log('[JobManager] 检查数据源可用性...');
         const isAvailable = await dataSourceService.checkAvailability();
         console.log('[JobManager] 数据源可用性:', isAvailable);
@@ -241,6 +249,7 @@ class JobManagerImpl {
       }
 
       // 步骤2: 抓取数据
+      this.updateJobStatus(jobId, 'processing', '开始抓取数据...', undefined, 'crawling', 20);
       const allRawTexts: string[] = [];
       const allVideos: RawVideoData[] = [];
       const allComments: RawCommentData[] = [];
@@ -367,26 +376,29 @@ class JobManagerImpl {
       }
 
       // 步骤3: 分离视频和评论进行聚类（避免不同语义层次混淆）
-      this.updateJobStatus(jobId, 'processing', '正在进行语义聚类分析...');
+      this.updateJobStatus(jobId, 'processing', '正在进行语义聚类分析...', undefined, 'clustering', 45);
 
       // 3.1 视频内容聚类
       const videoTexts = allVideos.map(v => v.title).filter(t => t && t.length > 0);
       let videoClusters: string[][] = [];
+      let totalNoiseCount = 0;
       if (videoTexts.length > 0) {
-        this.updateJobStatus(jobId, 'processing', `正在对 ${videoTexts.length} 条视频内容进行聚类...`);
-        // 不传递 minClusterSize，让 Python 自动计算 min_samples
-        videoClusters = await this.clusteringService.clusterTexts(videoTexts);
-        console.log(`视频聚类完成: ${videoClusters.length} 个聚类`);
+        this.updateJobStatus(jobId, 'processing', `正在对 ${videoTexts.length} 条视频内容进行聚类...`, undefined, 'clustering', 50);
+        const videoResult = await this.clusteringService.clusterTextsWithEmbeddings(videoTexts);
+        videoClusters = videoResult.clusters.map(c => c.texts);
+        totalNoiseCount += videoResult.noiseCount;
+        console.log(`视频聚类完成: ${videoClusters.length} 个聚类, ${videoResult.noiseCount} 个噪声点`);
       }
 
       // 3.2 评论内容聚类
       const commentTexts = allComments.map(c => c.comment_text).filter(t => t && t.length > 0);
       let commentClusters: string[][] = [];
       if (commentTexts.length > 0) {
-        this.updateJobStatus(jobId, 'processing', `正在对 ${commentTexts.length} 条评论内容进行聚类...`);
-        // 不传递 minClusterSize，让 Python 自动计算 min_samples
-        commentClusters = await this.clusteringService.clusterTexts(commentTexts);
-        console.log(`评论聚类完成: ${commentClusters.length} 个聚类`);
+        this.updateJobStatus(jobId, 'processing', `正在对 ${commentTexts.length} 条评论内容进行聚类...`, undefined, 'clustering', 60);
+        const commentResult = await this.clusteringService.clusterTextsWithEmbeddings(commentTexts);
+        commentClusters = commentResult.clusters.map(c => c.texts);
+        totalNoiseCount += commentResult.noiseCount;
+        console.log(`评论聚类完成: ${commentClusters.length} 个聚类, ${commentResult.noiseCount} 个噪声点`);
       }
 
       // 合并聚类结果（视频聚类在前，评论聚类在后）
@@ -457,7 +469,7 @@ class JobManagerImpl {
       job.clusteredData = clusteredDataGroups;
 
       // 步骤4: LLM分析每个聚类
-      this.updateJobStatus(jobId, 'processing', '正在调用LLM分析...');
+      this.updateJobStatus(jobId, 'processing', '正在调用LLM分析...', undefined, 'analyzing', 70);
       const results: ClusterResult[] = [];
 
       for (let i = 0; i < clusters.length; i++) {
@@ -503,9 +515,10 @@ class JobManagerImpl {
 
           results.push(result);
 
-          // 更新进度
+          // 更新进度 (analyzing 阶段: 70% + 25% * (i+1)/clusters.length)
+          const analyzePercent = 70 + Math.floor(25 * (i + 1) / clusters.length);
           const progress = `正在分析聚类 ${i + 1}/${clusters.length}...`;
-          this.updateJobStatus(jobId, 'processing', progress);
+          this.updateJobStatus(jobId, 'processing', progress, undefined, 'analyzing', analyzePercent);
 
           // 避免API调用过快
           if (i < clusters.length - 1) {
@@ -563,12 +576,14 @@ class JobManagerImpl {
       job.results = results;
       job.status = 'completed';
       job.progress = '分析完成';
+      job.progressStage = 'completed';
+      job.progressPercent = 100;
 
       // 保存分析结果到文件系统
-      this.saveAnalysisResults(job, results, allVideos, allComments, allRawTexts, totalDataSize, clusterCount, averageClusterSize);
+      this.saveAnalysisResults(job, results, allVideos, allComments, allRawTexts, totalDataSize, clusterCount, averageClusterSize, totalNoiseCount);
 
     } catch (error) {
-      this.updateJobStatus(jobId, 'failed', '任务失败', error instanceof Error ? error.message : '未知错误');
+      this.updateJobStatus(jobId, 'failed', '任务失败', error instanceof Error ? error.message : '未知错误', 'failed');
     }
   }
 
@@ -581,7 +596,8 @@ class JobManagerImpl {
     allRawTexts: string[],
     totalDataSize: number,
     clusterCount: number,
-    averageClusterSize: number
+    averageClusterSize: number,
+    noiseCount: number
   ): Promise<void> {
     try {
       console.log('[JobManager] 开始保存分析结果...');
@@ -621,7 +637,7 @@ class JobManagerImpl {
         totalClusters: clusterCount,
         totalVideos: allVideos.length,
         totalComments: allComments.length,
-        noisePoints: results.filter(r => parseInt(r.id, 10) < 0).reduce((sum, r) => sum + r.size, 0),
+        noisePoints: noiseCount,
         avgClusterSize: averageClusterSize,
         processingTime: Date.now() - job.startTime
       };
@@ -696,7 +712,7 @@ class JobManagerImpl {
   }
 
   // 获取质量建议
-  private getQualityRecommendation(level: string, videoCount: number, commentCount: number): string {
+  private getQualityRecommendation(level: string, _videoCount: number, _commentCount: number): string {
     switch (level) {
       case 'reliable':
         return '数据量充足，分析结果可靠。建议基于聚类结果进行深入的产品开发和市场策略制定。';
@@ -721,25 +737,21 @@ class JobManagerImpl {
 }
 
 // 获取或创建全局 JobManager 实例（在热重载时保持不变）
-function getGlobalJobManager() {
-  if (typeof global._jobManagerInstance === 'undefined') {
-    // 引用外部定义的 JobManagerImpl 类
-    global._jobManagerInstance = new JobManagerImpl();
+// 统一使用 globalThis，避免 Node 端 `global` 与浏览器 `window` 上的差异
+declare global {
+  var _jobManagerInstance: JobManagerImpl | undefined;
+}
+
+function getGlobalJobManager(): JobManagerImpl {
+  if (!globalThis._jobManagerInstance) {
+    globalThis._jobManagerInstance = new JobManagerImpl();
     console.log('[JobManager] 创建新的全局 JobManager 实例');
   }
-  return global._jobManagerInstance;
+  return globalThis._jobManagerInstance;
 }
 
-// 创建全局单例实例（在热重载时保持不变）
-// 使用 globalThis 来确保实例在模块重载时保持不变
-if (!globalThis._jobManagerInstance) {
-  // 从 getGlobalJobManager 函数创建实例
-  globalThis._jobManagerInstance = getGlobalJobManager();
-  console.log('[JobManager] ✨ 创建新的全局实例，已存储在 globalThis');
-}
-
-// 导出全局实例
-export const jobManager = globalThis._jobManagerInstance;
+// 导出全局实例（带类型）
+export const jobManager: JobManagerImpl = getGlobalJobManager();
 
 // 为了向后兼容，重新导出所有需要的类型
 export type { ClusterResult, PriorityScore };

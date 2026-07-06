@@ -3,7 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { useLocale } from 'next-intl';
-import AnalysisForm, { TikTokConfig } from "@/components/AnalysisForm";
+import AnalysisForm, { TikTokConfig, DataSourceType } from "@/components/AnalysisForm";
 import JobStatus from "@/components/JobStatus";
 import AIProductCard from "@/components/AIProductCard";
 import AIProductDetailModal from "@/components/AIProductDetailModal";
@@ -35,6 +35,8 @@ interface JobResponse {
   jobId: string;
   status: string;
   progress: string;
+  progressStage?: 'init' | 'validating' | 'crawling' | 'clustering' | 'analyzing' | 'completed' | 'failed';
+  progressPercent?: number;
   results?: AIProductResult[];
   error?: string;
 }
@@ -76,7 +78,7 @@ export default function AIProductPage() {
 
   const handleAnalysisSubmit = async (
     keywords: string[],
-    dataSource: 'tiktok' | 'tikhub',
+    dataSource: DataSourceType,
     deepCrawl: boolean,
     maxVideos: number,
     tiktokConfig?: TikTokConfig
@@ -176,6 +178,8 @@ export default function AIProductPage() {
                 status={jobData?.status || "processing"}
                 progressText={jobData?.progress || "正在初始化..."}
                 error={jobData?.error || (jobError ? "网络错误，请重试" : undefined)}
+                progressStage={jobData?.progressStage}
+                progressPercent={jobData?.progressPercent}
               />
             </div>
           )}

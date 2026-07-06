@@ -1,20 +1,22 @@
 import { NextResponse } from 'next/server';
 import { jobManager } from '../../../../lib/services/job-manager';
 
-export async function GET() {
-  const jobStats = jobManager.getJobStats();
-  const jobIds = jobManager.getAllJobIds();
+export const dynamic = 'force-dynamic';
 
-  return NextResponse.json(
-    {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      jobs: {
-        stats: jobStats,
-        recentJobs: jobIds.slice(-10) // 最近10个任务ID
-      }
-    },
-    { status: 200 }
-  );
+export async function GET() {
+  const isDev = process.env.NODE_ENV !== 'production';
+  const body: Record<string, unknown> = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  };
+
+  if (isDev) {
+    body.jobs = {
+      stats: jobManager.getJobStats(),
+      recentJobs: jobManager.getAllJobIds().slice(-10)
+    };
+  }
+
+  return NextResponse.json(body, { status: 200 });
 }

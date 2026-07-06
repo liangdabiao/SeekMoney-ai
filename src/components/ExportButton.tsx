@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from 'next-intl';
 
 interface ClusterResult {
@@ -20,6 +21,7 @@ interface ExportButtonProps {
 
 export default function ExportButton({ results }: ExportButtonProps) {
   const t = useTranslations('export');
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const convertToCSV = (data: ClusterResult[]): string => {
     const headers = [
@@ -68,7 +70,10 @@ export default function ExportButton({ results }: ExportButtonProps) {
   };
 
   const handleExport = () => {
+    setExportError(null);
     if (results.length === 0) {
+      setExportError('暂无可导出的数据');
+      setTimeout(() => setExportError(null), 3000);
       return;
     }
 
@@ -89,23 +94,32 @@ export default function ExportButton({ results }: ExportButtonProps) {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-    } catch {
-      // Export failed silently
+    } catch (err) {
+      console.error('[ExportButton] 导出失败:', err);
+      setExportError('导出失败，请重试');
+      setTimeout(() => setExportError(null), 3000);
     }
   };
 
   return (
-    <div
-      onClick={handleExport}
-      className="bg-[#18181B] rounded-2xl p-4 shadow-lg text-white relative overflow-hidden group cursor-pointer hover:bg-zinc-800 transition"
-    >
-      <div className="absolute right-3 top-3 opacity-20">
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
+    <div className="relative">
+      <div
+        onClick={handleExport}
+        className="bg-[#18181B] rounded-2xl p-4 shadow-lg text-white relative overflow-hidden group cursor-pointer hover:bg-zinc-800 transition"
+      >
+        <div className="absolute right-3 top-3 opacity-20">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        </div>
+        <div className="text-gray-400 text-xs font-semibold uppercase">Export</div>
+        <div className="text-lg font-bold mt-1">Download CSV</div>
       </div>
-      <div className="text-gray-400 text-xs font-semibold uppercase">Export</div>
-      <div className="text-lg font-bold mt-1">Download CSV</div>
+      {exportError && (
+        <div className="absolute left-0 right-0 top-full mt-2 px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">
+          {exportError}
+        </div>
+      )}
     </div>
   );
 }

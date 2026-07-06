@@ -1,0 +1,30 @@
+{
+  "overview": {
+    "dataCollection": {
+      "videosCollected": 10,
+      "commentsCollected": 0,
+      "rawTextsCollected": 10,
+      "dataSource": "douyin API",
+      "keywords": [
+        "猫咪",
+        "宠物"
+      ]
+    },
+    "clustering": {
+      "clustersFormed": 1,
+      "avgClusterSize": 10,
+      "noisePoints": 0
+    }
+  },
+  "qualityAssessment": {
+    "dataReliability": "exploratory",
+    "recommendation": "数据量较少，结果为探索性质。建议增加抓取数量或尝试更多相关关键词。"
+  },
+  "topClusters": [
+    {
+      "id": null,
+      "size": 10,
+      "theme": "铲屎官面对猫咪调皮捣蛋时束手无策，缺乏科学有效的管教方法。"
+    }
+  ]
+}

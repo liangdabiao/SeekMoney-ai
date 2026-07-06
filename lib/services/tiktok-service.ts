@@ -51,20 +51,19 @@ export class TikTokService implements IDataSourceService {
 
     const rawTexts: string[] = [];
     const videos: any[] = [];
-    let offset = 0;
-    let searchId = '';
     let hasMore = true;
     let totalFetched = 0;
 
     try {
       // 分页搜索，直到获取足够的数据或没有更多结果
       while (hasMore && totalFetched < limit) {
-        console.log(`[TikTok Service] 搜索第 ${Math.floor(totalFetched / 20) + 1} 页, offset: ${offset}`);
+        const pageNumber = Math.floor(totalFetched / 20) + 1;
+        console.log(`[TikTok Service] 搜索第 ${pageNumber} 页`);
 
         const searchResult = await this.client['searchTiktokVideos']({
           keyword,
-          offset,
-          search_id: searchId
+          offset: totalFetched,
+          search_id: ''
         });
 
         console.log('[TikTok Service] API 响应 code:', searchResult.code);
@@ -286,7 +285,7 @@ export class TikTokService implements IDataSourceService {
   /**
    * 将 TikTok 搜索结果转换为视频数据格式
    */
-  private convertSearchResultToVideo(item: any, sourceKeyword: string): any {
+  private convertSearchResultToVideo(item: any, _sourceKeyword: string): any {
     // TikTok 数据结构: { type: 1, item: { id, desc, createTime, author, video, ... } }
     const tiktokItem = item.item;
     

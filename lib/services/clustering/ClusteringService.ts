@@ -94,7 +94,7 @@ export class ClusteringService {
     // Step 1: 数据清洗
     let cleanTexts = texts;
     let cleanScores: number[] = [];
-    let originalCount = texts.length;
+    const originalCount = texts.length;
 
     if (opts.enableCleaning) {
       const cleanResult = this.step('数据清洗', () => {
@@ -135,7 +135,7 @@ export class ClusteringService {
 
     const result: ClusteringResult = {
       clusters,
-      noise: dbscanResult.noise.map(idx => cleanTexts[idx]),
+      noise: dbscanResult.noise.map((idx: number) => cleanTexts[idx]),
       noiseCount: dbscanResult.noise.length,
       totalTexts: originalCount,
       cleanedTexts: cleanTexts.length,

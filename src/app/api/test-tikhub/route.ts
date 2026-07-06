@@ -1,12 +1,24 @@
-// 测试 TikHub API 连接
-import { NextRequest, NextResponse } from 'next/server';
+// 测试 TikHub API 连接 - 仅在开发环境可用
+import { NextResponse } from 'next/server';
 import axios from 'axios';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
-  const token = process.env.TIKHUB_API_TOKEN || 'vZdfXsQag0amkXarPysjLT4kjaa6yL0gTnBk/aTAi8aA==';
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const token = process.env.TIKHUB_API_TOKEN || process.env.TIKHUB_API_KEY;
+  if (!token) {
+    return NextResponse.json({
+      success: false,
+      error: 'TIKHUB_API_TOKEN 未设置'
+    }, { status: 400 });
+  }
 
   console.log('[Test API] 开始测试 TikHub API');
-  console.log('[Test API] Token:', token.substring(0, 20) + '...');
+  console.log('[Test API] Token:', token.substring(0, 6) + '...');
 
   try {
     // 测试 1: 直接使用 axios

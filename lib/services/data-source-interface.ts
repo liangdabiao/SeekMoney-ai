@@ -4,16 +4,16 @@ export type DataSourceType = 'tikhub' | 'tiktok' | 'bilibili' | 'wechat' | 'yout
 
 export interface DataSourceResult {
   rawTexts: string[];
-  videos?: any[];
+  videos: any[];
   metadata?: any;
 }
 
 export interface DeepCrawlResult {
   rawTexts: string[];
-  videos?: any[];
-  allComments?: any[];
-  videoCount?: number;
-  commentCount?: number;
+  videos: any[];
+  allComments: any[];
+  videoCount: number;
+  commentCount: number;
 }
 
 export interface DeepCrawlOptions {

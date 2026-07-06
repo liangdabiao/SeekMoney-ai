@@ -75,15 +75,15 @@ interface DetailModalProps {
   result: ClusterResult | null;
 }
 
-// Tab 定义
+// Tab 定义 - 抽取 id 联合类型供翻译后的 tabs 复用
 const tabs = [
   { id: 'pain', label: '痛点分析', icon: Lightbulb },
   { id: 'market', label: '市场格局', icon: Store },
-  { id: 'mvp', label: 'MVP方案', icon: Rocket },
-  { id: 'source', label: '原文依据', icon: FileText },
+  { id: 'mvp', label: 'MVP 计划', icon: Rocket },
+  { id: 'source', label: '原始数据', icon: FileText },
 ] as const;
-
 type TabId = typeof tabs[number]['id'];
+void tabs;
 
 // 环形进度组件
 function RingGauge({

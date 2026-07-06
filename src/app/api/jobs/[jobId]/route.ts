@@ -38,6 +38,8 @@ export async function GET(
       jobId: string;
       status: string;
       progress: string;
+      progressStage?: 'init' | 'validating' | 'crawling' | 'clustering' | 'analyzing' | 'completed' | 'failed';
+      progressPercent?: number;
       keywords?: string[];
       results?: ClusterResult[];
       rawData?: {
@@ -51,6 +53,8 @@ export async function GET(
       jobId: job.jobId,
       status: job.status,
       progress: job.progress,
+      progressStage: job.progressStage,
+      progressPercent: job.progressPercent,
       keywords: job.keywords
     };
 

@@ -1,22 +1,9 @@
-import { Inter } from "next/font/google";
-import "./globals.css";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-});
-
+// 根布局仅做占位，html 标签与字体注入移到 [locale]/layout.tsx
+// 这样可以根据当前 locale 设置 lang 属性（无障碍 + SEO 必需）
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html>
-      <body className={`${inter.variable} antialiased font-sans`}>
-        {children}
-      </body>
-    </html>
-  );
+  return children;
 }

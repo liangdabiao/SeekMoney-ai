@@ -105,7 +105,16 @@ export class AnalysisStorageService {
   private baseFolder: string;
 
   constructor(baseFolder?: string) {
-    this.baseFolder = baseFolder || path.join(process.cwd(), 'analysis-results');
+    // 优先级: 构造参数 > SEAGULL_STORAGE_DIR 环境变量 > 默认 ./analysis-results
+    // 设为空字符串可禁用持久化（适合 serverless 环境）
+    const envDir = process.env.SEAGULL_STORAGE_DIR;
+    if (baseFolder !== undefined) {
+      this.baseFolder = baseFolder;
+    } else if (envDir && envDir.trim().length > 0) {
+      this.baseFolder = path.isAbsolute(envDir) ? envDir : path.join(process.cwd(), envDir);
+    } else {
+      this.baseFolder = path.join(process.cwd(), 'analysis-results');
+    }
     this.ensureBaseFolder();
   }
 
@@ -257,7 +266,7 @@ export class AnalysisStorageService {
     }
   }
 
-  async saveSummary(folderPath: string, summary: AnalysisSummary, locale: string = 'zh'): Promise<SaveResult> {
+  async saveSummary(folderPath: string, summary: AnalysisSummary, _locale: string = 'zh'): Promise<SaveResult> {
     try {
       const filePath = path.join(folderPath, 'analysis', 'summary.json');
       fs.writeFileSync(filePath, JSON.stringify(summary, null, 2), 'utf-8');

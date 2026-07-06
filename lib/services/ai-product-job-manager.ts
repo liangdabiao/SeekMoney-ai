@@ -8,6 +8,8 @@ export interface AIProductJob {
   jobId: string;
   status: 'processing' | 'completed' | 'failed';
   progress: string;
+  progressStage: 'init' | 'validating' | 'crawling' | 'clustering' | 'analyzing' | 'completed' | 'failed';
+  progressPercent: number;
   keywords: string[];
   limit: number;
   dataSource: DataSourceType;
@@ -32,6 +34,8 @@ export class AIProductJobManager {
       jobId,
       status: 'processing',
       progress: '正在初始化...',
+      progressStage: 'init',
+      progressPercent: 5,
       keywords,
       limit,
       dataSource,
@@ -55,12 +59,21 @@ export class AIProductJobManager {
   }
 
   // 更新任务状态
-  private updateJobStatus(jobId: string, status: AIProductJob['status'], progress?: string, error?: string): void {
+  private updateJobStatus(
+    jobId: string,
+    status: AIProductJob['status'],
+    progress?: string,
+    error?: string,
+    stage?: AIProductJob['progressStage'],
+    percent?: number
+  ): void {
     const job = this.jobs.get(jobId);
     if (job) {
       job.status = status;
       if (progress) job.progress = progress;
       if (error) job.error = error;
+      if (stage) job.progressStage = stage;
+      if (typeof percent === 'number') job.progressPercent = Math.max(0, Math.min(100, percent));
     }
   }
 
@@ -76,7 +89,7 @@ export class AIProductJobManager {
 
       // 步骤1: 检查数据源可用性（如果支持）
       if (dataSourceService.checkAvailability) {
-        this.updateJobStatus(jobId, 'processing', `正在验证${sourceName}数据源...`);
+        this.updateJobStatus(jobId, 'processing', `正在验证${sourceName}数据源...`, undefined, 'validating', 10);
         const isAvailable = await dataSourceService.checkAvailability();
         if (!isAvailable) {
           throw new Error(`${sourceName}数据源不可用，请检查配置`);
@@ -84,7 +97,7 @@ export class AIProductJobManager {
       }
 
       // 步骤2: 抓取数据
-      this.updateJobStatus(jobId, 'processing', `正在从${sourceName}抓取数据...`);
+      this.updateJobStatus(jobId, 'processing', '开始抓取数据...', undefined, 'crawling', 20);
       const allRawTexts: string[] = [];
 
       for (let i = 0; i < job.keywords.length; i++) {
@@ -97,9 +110,10 @@ export class AIProductJobManager {
 
         allRawTexts.push(...rawTexts);
 
-        // 更新进度
+        // 更新进度 (crawling 阶段: 20% + 30% * (i+1)/keywords.length)
+        const crawlPercent = 20 + Math.floor(30 * (i + 1) / job.keywords.length);
         const progress = `正在从${sourceName}抓取 "${keyword}" 相关数据...`;
-        this.updateJobStatus(jobId, 'processing', progress);
+        this.updateJobStatus(jobId, 'processing', progress, undefined, 'crawling', crawlPercent);
       }
 
       if (allRawTexts.length === 0) {
@@ -107,7 +121,7 @@ export class AIProductJobManager {
       }
 
       // 步骤3: AI产品分析
-      this.updateJobStatus(jobId, 'processing', '正在进行AI产品分析...');
+      this.updateJobStatus(jobId, 'processing', '正在进行AI产品分析...', undefined, 'analyzing', 60);
 
       // 将所有文本合并分析，生成AI产品建议
       const analysis = await this.aiProductService.analyzeForAIProduct(allRawTexts, job.locale);
@@ -123,9 +137,19 @@ export class AIProductJobManager {
       job.results = [result];
       job.status = 'completed';
       job.progress = '分析完成';
+      job.progressStage = 'completed';
+      job.progressPercent = 100;
 
     } catch (error) {
-      this.updateJobStatus(jobId, 'failed', '任务失败', error instanceof Error ? error.message : '未知错误');
+      console.error('[AIProductJobManager] 任务执行失败:', error);
+      this.updateJobStatus(
+        jobId,
+        'failed',
+        '任务失败',
+        error instanceof Error ? error.message : '未知错误',
+        'failed',
+        0
+      );
     }
   }
 
