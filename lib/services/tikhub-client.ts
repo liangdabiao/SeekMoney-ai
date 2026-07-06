@@ -853,7 +853,7 @@ export class TikHubAPIClient {
    * 获取 Bilibili 视频评论
    */
   async getBilibiliVideoComments(
-    bvId: string,
+    avId: string,
     pn: number = 1
   ): Promise<any> {
     this.requestCount++;
@@ -861,11 +861,12 @@ export class TikHubAPIClient {
 
     try {
       const response = await this.client.get(
-        '/api/v1/bilibili/web/fetch_video_comments',
+        '/api/v1/bilibili/app/fetch_video_comments',
         {
           params: {
-            bv_id: bvId,
-            pn: pn.toString()
+            av_id: avId,
+            mode: 3,
+            next_offset: pn
           }
         }
       );
@@ -875,18 +876,17 @@ export class TikHubAPIClient {
       console.log('[Bilibili API] 评论响应:', {
         code: data.code,
         hasData: !!data.data,
-        hasReplies: !!data.data?.replies,
-        replyCount: data.data?.replies?.length || 0,
+        hasReplies: !!data.data?.data?.replies,
+        replyCount: data.data?.data?.replies?.length || 0,
         cacheUrl: data.cache_url
       });
 
       // 存储缓存
       if (data.cache_url) {
-        const cacheKey = `bilibili_comments_${bvId}_${pn}`;
+        const cacheKey = `bilibili_comments_${avId}_${pn}`;
         this.setCache(cacheKey, data, data.cache_url);
       }
 
-      // 更新成本预估
       this.costEstimate += this.COST_PER_REQUEST;
 
       return data;
@@ -904,12 +904,12 @@ export class TikHubAPIClient {
    * 批量获取 Bilibili 视频评论
    */
   async getBilibiliVideoCommentsBatch(
-    bvIds: string[],
+    avIds: string[],
     maxCommentsPerVideo: number
   ): Promise<Map<string, any[]>> {
     const result = new Map<string, any[]>();
 
-    for (const bvId of bvIds) {
+    for (const avId of avIds) {
       try {
         const comments: any[] = [];
         let pn = 1;
@@ -917,22 +917,21 @@ export class TikHubAPIClient {
 
         while (hasMore && comments.length < maxCommentsPerVideo) {
           const response = await this.getBilibiliVideoComments(
-            bvId,
+            avId,
             pn
           );
 
-          if (response.code !== 200 || !response.data?.replies) {
+          if (response.code !== 200 || !response.data?.data?.replies) {
             console.warn('[Bilibili API] 评论响应格式不符合预期，停止获取评论');
             break;
           }
 
-          const replyList = response.data.replies;
+          const replyList = response.data.data.replies;
           comments.push(...replyList);
 
-          // Bilibili API 返回 page 信息
-          const page = response.data.data?.page;
-          if (page) {
-            hasMore = pn * page.size < page.count;
+          const cursor = response.data.data?.cursor;
+          if (cursor) {
+            hasMore = !cursor.is_end;
           } else {
             hasMore = replyList.length >= 20;
           }
@@ -941,14 +940,13 @@ export class TikHubAPIClient {
 
           console.log(`[Bilibili API] 已获取 ${comments.length} 条评论，has_more: ${hasMore}`);
 
-          // 避免请求过快
           await this.delay(300);
         }
 
-        result.set(bvId, comments);
+        result.set(avId, comments);
       } catch (error) {
-        console.error(`[Bilibili API] Failed to fetch comments for ${bvId}:`, error);
-        result.set(bvId, []);
+        console.error(`[Bilibili API] Failed to fetch comments for ${avId}:`, error);
+        result.set(avId, []);
       }
     }
 
@@ -967,21 +965,16 @@ export class TikHubAPIClient {
     this.requestCount++;
     this.searchRequests++;
 
-    const queryParams: any = {
-      keywords: params.keywords
+    const postParams: any = {
+      keyword: params.keywords
     };
 
-    // Only add session_buffer if it has a value
-    if (params.sessionBuffer && params.sessionBuffer.length > 0) {
-      queryParams.session_buffer = params.sessionBuffer;
-    }
-
-    console.log('[WeChat Channels API] 请求参数:', JSON.stringify(queryParams));
+    console.log('[WeChat Channels API] 请求参数:', JSON.stringify(postParams));
 
     try {
-      const response = await this.client.get(
-        '/api/v1/wechat_channels/fetch_default_search',
-        { params: queryParams }
+      const response = await this.client.post(
+        '/api/v1/wechat_search/v2/fetch_search_videos',
+        postParams
       );
 
       const data = response.data;
@@ -990,18 +983,17 @@ export class TikHubAPIClient {
         code: data.code,
         message: data.message,
         hasData: !!data.data,
-        hasMediaList: !!data.data?.media_list,
-        mediaCount: data.data?.media_list?.length || 0,
+        hasResults: !!data.data?.results,
+        hasResultsData: !!data.data?.results?.data,
+        resultsCount: data.data?.results?.data?.length || 0,
         cacheUrl: data.cache_url
       });
 
-      // 存储缓存
       if (data.cache_url) {
         const cacheKey = `wechat_search_${JSON.stringify(params)}`;
         this.setCache(cacheKey, data, data.cache_url);
       }
 
-      // 更新成本预估
       this.costEstimate += this.COST_PER_REQUEST;
 
       return data;
@@ -1044,7 +1036,7 @@ export class TikHubAPIClient {
 
     try {
       const response = await this.client.get(
-        '/api/v1/wechat_channels/fetch_comments',
+        '/api/v1/wechat_channels/v2/fetch_video_comments',
         { params: queryParams }
       );
 
@@ -1178,7 +1170,7 @@ export class TikHubAPIClient {
 
     try {
       const response = await this.client.get(
-        '/api/v1/youtube/web/get_general_search',
+        '/api/v1/youtube/web/search_video',
         { params: queryParams }
       );
 
@@ -1188,8 +1180,8 @@ export class TikHubAPIClient {
         code: data.code,
         message: data.message,
         hasData: !!data.data,
-        hasFormattedData: !!data.data?.formatted_data,
-        videoCount: data.data?.formatted_data?.videos?.length || data.data?.videos?.length || 0,
+        hasFormattedData: !!data.data?.videos,
+        videoCount: data.data?.videos?.length || 0,
         cacheUrl: data.cache_url
       });
 
@@ -1510,39 +1502,35 @@ export class TikHubAPIClient {
 
     const queryParams: any = {
       keyword: params.keyword,
-      page: params.page || 1,
-      sort: params.sort || 'general',
-      noteType: params.noteType || '_0'
+      page: params.page || 1
     };
-
-    if (params.noteTime) {
-      queryParams.noteTime = params.noteTime;
-    }
 
     try {
       const response = await this.client.get(
-        '/api/v1/xiaohongshu/web/search_notes',
+        '/api/v1/xiaohongshu/app_v2/search_notes',
         { params: queryParams }
       );
 
       const data = response.data;
 
+      const innerData = data.data?.data;
+      const items = innerData?.items || [];
+
       console.log('[Xiaohongshu API] 搜索响应详情:', {
         code: data.code,
         message: data.message,
         hasData: !!data.data,
-        hasItems: !!data.data?.items,
-        itemCount: data.data?.items?.length || 0,
+        hasInnerData: !!innerData,
+        hasItems: !!items.length,
+        itemCount: items.length,
         cacheUrl: data.cache_url
       });
 
-      // 存储缓存
       if (data.cache_url) {
         const cacheKey = `xiaohongshu_search_${JSON.stringify(queryParams)}`;
         this.setCache(cacheKey, data, data.cache_url);
       }
 
-      // 更新成本预估
       this.costEstimate += this.COST_PER_REQUEST;
 
       return data;
@@ -1576,7 +1564,7 @@ export class TikHubAPIClient {
 
     try {
       const response = await this.client.get(
-        '/api/v1/xiaohongshu/web/get_note_comments',
+        '/api/v1/xiaohongshu/app_v2/get_note_comments',
         { params: queryParams }
       );
 
@@ -1631,17 +1619,17 @@ export class TikHubAPIClient {
             lastCursor
           );
 
-          if (response.code !== 200 || !response.data?.comments) {
+          if (response.code !== 200 || !response.data?.data?.comments) {
             console.warn('[Xiaohongshu API] 评论响应格式不符合预期，停止获取评论');
             break;
           }
 
-          const commentList = response.data.comments;
+          const commentList = response.data.data.comments;
           comments.push(...commentList);
 
           // 检查是否还有更多评论
-          hasMore = response.data?.has_more === true;
-          lastCursor = response.data?.cursor || '';
+          hasMore = response.data.data?.has_more === true;
+          lastCursor = response.data.data?.cursor || '';
 
           console.log(`[Xiaohongshu API] 已获取 ${comments.length} 条评论，has_more: ${hasMore}`);
 

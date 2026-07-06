@@ -71,10 +71,11 @@ export class XiaohongshuService implements IDataSourceService {
           throw new Error(`Xiaohongshu API 搜索失败: ${searchResult.message}`);
         }
 
-        // Xiaohongshu API 响应格式: { code, data: { data: { items: [...] } } }
-        const itemsList = searchResult.data?.data?.items;
+        // Xiaohongshu API 响应格式: { code, data: { code, data: { items: [...] } } }
+        const innerData = searchResult.data?.data;
+        const itemsList = innerData?.items || [];
 
-        if (!itemsList || !Array.isArray(itemsList)) {
+        if (!Array.isArray(itemsList)) {
           console.warn('[Xiaohongshu Service] 未找到有效的数据数组');
           break;
         }

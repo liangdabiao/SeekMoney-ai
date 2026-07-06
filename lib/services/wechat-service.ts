@@ -70,16 +70,23 @@ export class WeChatService implements IDataSourceService {
           throw new Error(`WeChat Channels API 搜索失败: ${searchResult.message}`);
         }
 
-        // WeChat API 响应格式: { code, data: { media_list: [...], last_buff: ... } }
-        const mediaList = searchResult.data?.media_list;
+        // WeChat API 响应格式: { code, data: { results: { data: [{ subBoxes: [{ items: [...] }] }] } } }
+        const results = searchResult.data?.results;
+        const dataArray = results?.data || [];
 
-        if (!mediaList || !Array.isArray(mediaList)) {
+        if (!Array.isArray(dataArray)) {
           console.warn('[WeChat Service] 未找到有效的数据数组');
           break;
         }
 
-        // 更新分页参数
-        sessionBuffer = searchResult.data?.last_buff || '';
+        const mediaList: any[] = [];
+        for (const box of dataArray) {
+          const subBoxes = box?.subBoxes || [];
+          for (const subBox of subBoxes) {
+            const items = subBox?.items || [];
+            mediaList.push(...items);
+          }
+        }
 
         console.log(`[WeChat Service] 第 ${Math.floor(totalFetched / 20) + 1} 页获取到 ${mediaList.length} 个结果`);
 
@@ -255,43 +262,39 @@ export class WeChatService implements IDataSourceService {
    * 将 WeChat Channels 搜索结果转换为视频数据格式
    */
   private convertSearchResultToVideo(item: any, sourceKeyword: string): any {
-    if (!item.id) {
-      console.warn('[WeChat Service] convertSearchResultToVideo: item 缺少 id 字段');
+    if (!item.docID) {
+      console.warn('[WeChat Service] convertSearchResultToVideo: item 缺少 docID 字段');
       return null;
     }
 
-    // 提取描述信息
-    const description = item.object_desc?.description || '';
+    const description = item.desc || '';
 
-    // 提取媒体信息
-    const media = item.object_desc?.media?.[0];
-    const videoUrl = media ? `${media.url}${media.url_token || ''}` : '';
+    const videoUrl = '';
 
-    // 转换时间戳（WeChat 使用秒级时间戳）
-    const createTime = item.create_time
-      ? new Date(item.create_time * 1000).toISOString()
+    const createTime = item.pubTime
+      ? new Date(item.pubTime * 1000).toISOString()
       : new Date().toISOString();
 
-    // 移除标题中的 HTML 标签
-    const cleanTitle = item.nickname || '';
+    const cleanTitle = item.title || '';
 
     return {
       title: cleanTitle,
       description: description,
-      author: item.nickname || '',
+      author: item.nickName || '',
       video_url: videoUrl,
       publish_time: createTime,
-      likes: '0', // WeChat 不提供点赞数
+      likes: item.likeNum || '0',
       collected_at: new Date().toISOString(),
       comment_count: 0,
       // 扩展字段
-      id: item.id,
+      id: item.docID,
+      hash_id: item.hashDocID || '',
       username: item.username || '',
       // 媒体信息
-      duration: media?.video_play_len ? `${media.video_play_len}秒` : '',
-      width: media?.width || 0,
-      height: media?.height || 0,
-      thumb_url: media?.thumb_url || '',
+      duration: item.duration || '',
+      width: item.width || 0,
+      height: item.height || 0,
+      thumb_url: item.image || '',
       // 来源
       source_keyword: sourceKeyword
     };

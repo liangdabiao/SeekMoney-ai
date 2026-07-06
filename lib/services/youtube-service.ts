@@ -89,12 +89,8 @@ export class YouTubeService implements IDataSourceService {
           throw new Error(`YouTube API 搜索失败: ${searchResult.message}`);
         }
 
-        // V3 格式化数据优先从 formatted_data 中取，兼容旧格式
-        const formattedData = searchResult.data?.formatted_data;
-        const videoList = formattedData?.videos
-          || searchResult.data?.videos
-          || searchResult.data?.data
-          || [];
+        // 从 search_video 接口返回的数据中取视频列表
+        const videoList = searchResult.data?.videos || [];
 
         if (!Array.isArray(videoList) || videoList.length === 0) {
           console.warn('[YouTube Service V3] 没有更多结果，停止分页');
@@ -124,8 +120,7 @@ export class YouTubeService implements IDataSourceService {
         console.log(`[YouTube Service V3] 当前页处理结果: 累计视频 ${videos.length}, 累计文本 ${rawTexts.length}`);
 
         // 更新分页 token
-        continuationToken = formattedData?.continuation_token
-          || searchResult.data?.continuation_token || '';
+        continuationToken = searchResult.data?.continuation_token || '';
 
         if (!continuationToken || videoList.length < 20) {
           break;

@@ -190,17 +190,17 @@ export class BilibiliService implements IDataSourceService {
     }
 
     // 批量获取评论
-    const bvIds = videoList
-      .map(v => v.bvid)
+    const avIds = videoList
+      .map(v => v.aid)
       .filter((id): id is string => !!id);
 
-    const commentsMap = await this.client['getBilibiliVideoCommentsBatch'](bvIds, maxCommentsPerVideo);
+    const commentsMap = await this.client['getBilibiliVideoCommentsBatch'](avIds, maxCommentsPerVideo);
 
     // 处理评论数据
     for (const video of videoList) {
-      if (!video.bvid) continue;
+      if (!video.aid) continue;
 
-      const comments = commentsMap.get(video.bvid) || [];
+      const comments = commentsMap.get(video.aid) || [];
       const limitedComments = comments.slice(0, maxCommentsPerVideo);
 
       for (const comment of limitedComments) {
